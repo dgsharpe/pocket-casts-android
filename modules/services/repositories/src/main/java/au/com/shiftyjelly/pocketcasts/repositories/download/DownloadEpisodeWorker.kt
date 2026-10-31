@@ -166,6 +166,8 @@ class DownloadEpisodeWorker @AssistedInject constructor(
                 resolvedEpisode?.let { episodeDurationFixer.fixMissingDuration(it, result.file) }
                 val mimiEpisode = resolvedEpisode?.takeIf { it.fileType == MimiHub.MIME_TYPE }
                 if (mimiEpisode != null) {
+                    // storage screens sum the stored size, which came from the original (MP3) enclosure
+                    episodeManager.updateSizeInBytesBlocking(mimiEpisode, result.file.length())
                     runBlocking { mimiHub.attachTranscript(mimiEpisode.uuid) }
                     MimiLibrary.preloadAsync(context) // warm the decoder (~1-3 s) before playback
                 }
