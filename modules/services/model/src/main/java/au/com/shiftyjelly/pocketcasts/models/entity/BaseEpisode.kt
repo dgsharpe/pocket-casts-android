@@ -205,7 +205,7 @@ sealed interface BaseEpisode {
             fileType.equals("audio/x-m4p", ignoreCase = true) -> return ".m4p"
             fileType.equals("audio/ogg", ignoreCase = true) -> return ".ogg"
             fileType.equals("audio/x-ms-wma", ignoreCase = true) -> return ".wma"
-            fileType.equals("audio/x-mimi", ignoreCase = true) -> return ".mimi" // Mimi neural codec (mimi-hub)
+            fileType.equals("audio/x-mimi", ignoreCase = true) -> return ".mimi"
             fileType.equals(MimeTypes.APPLICATION_M3U8, ignoreCase = true) -> return ".m3u8"
             fileType.equals("application/vnd.apple.mpegurl", ignoreCase = true) -> return ".m3u8"
             else -> return if (fileType.startsWith("video/")) ".mp4" else ".mp3"

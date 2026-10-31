@@ -5,6 +5,7 @@ import au.com.shiftyjelly.pocketcasts.models.entity.PodcastEpisode
 import au.com.shiftyjelly.pocketcasts.models.entity.Transcript
 import au.com.shiftyjelly.pocketcasts.models.to.ChapterOrigin
 import au.com.shiftyjelly.pocketcasts.models.to.DbChapter
+import au.com.shiftyjelly.pocketcasts.repositories.mimi.MimiHub
 import au.com.shiftyjelly.pocketcasts.repositories.podcast.ChapterManager
 import au.com.shiftyjelly.pocketcasts.repositories.podcast.EpisodeManager
 import au.com.shiftyjelly.pocketcasts.repositories.podcast.ImageUrlUpdate
@@ -39,12 +40,14 @@ class ShowNotesProcessTest {
     private val chapterManager = mock<ChapterManager>()
     private val transcriptDao = mock<TranscriptDao>()
     private val service = mock<PodcastCacheService>()
+    private val mimiHub = mock<MimiHub>()
 
     private val processor = ShowNotesProcessor(
         episodeManager = episodeManager,
         chapterManager = chapterManager,
         transcriptDao = transcriptDao,
         service = service,
+        mimiHub = mimiHub,
         showNotesBaseUrl = "https://test.com".toHttpUrl(),
     )
 

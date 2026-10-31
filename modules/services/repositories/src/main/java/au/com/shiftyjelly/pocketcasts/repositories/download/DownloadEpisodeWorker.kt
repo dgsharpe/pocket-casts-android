@@ -26,6 +26,7 @@ import au.com.shiftyjelly.pocketcasts.repositories.download.DownloadEpisodeWorke
 import au.com.shiftyjelly.pocketcasts.repositories.download.DownloadNotificationObserver.NotificationJob
 import au.com.shiftyjelly.pocketcasts.repositories.file.FileStorage
 import au.com.shiftyjelly.pocketcasts.repositories.file.StorageException
+import au.com.shiftyjelly.pocketcasts.repositories.mimi.MimiHub
 import au.com.shiftyjelly.pocketcasts.repositories.podcast.EpisodeManager
 import au.com.shiftyjelly.pocketcasts.repositories.podcast.UserEpisodeManager
 import au.com.shiftyjelly.pocketcasts.servers.di.Downloads
@@ -40,7 +41,6 @@ import java.io.File
 import java.io.IOException
 import java.net.SocketException
 import java.net.SocketTimeoutException
-import au.com.shiftyjelly.pocketcasts.repositories.mimi.MimiHub
 import java.net.UnknownHostException
 import java.util.UUID
 import javax.net.ssl.SSLException

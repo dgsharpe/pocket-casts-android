@@ -17,6 +17,7 @@ import au.com.shiftyjelly.pocketcasts.repositories.bookmark.BookmarkManager
 import au.com.shiftyjelly.pocketcasts.repositories.chat.ChatManager
 import au.com.shiftyjelly.pocketcasts.repositories.fingerprint.ChapterSeekResult
 import au.com.shiftyjelly.pocketcasts.repositories.fingerprint.FingerprintTimingManager
+import au.com.shiftyjelly.pocketcasts.repositories.mimi.MimiHub
 import au.com.shiftyjelly.pocketcasts.repositories.playback.PlaybackManager
 import au.com.shiftyjelly.pocketcasts.repositories.podcast.EpisodeManager
 import au.com.shiftyjelly.pocketcasts.repositories.transcript.BookmarkTranscript
@@ -231,6 +232,10 @@ class TranscriptViewModel @AssistedInject constructor(
         if (!currentState.isTapToSeekAvailable) return TapSeekResult.Unavailable
 
         val episodeUuid = currentState.transcriptEpisodeUuid ?: return TapSeekResult.Unavailable
+        if (currentState.isDirectSyncActive) { // mimi-hub transcript: cue time == playback time
+            performTapSeek(textEntry.startTimeMs.toInt())
+            return TapSeekResult.Seeked(textEntry.startTimeMs.toInt())
+        }
         val densePlayback = if (currentState.isSyncedActive) {
             fingerprintTimingManager.densePlaybackTime(episodeUuid, textEntry.startTimeMs.milliseconds)
         } else {
@@ -610,16 +615,28 @@ data class UiState(
 
     val transcriptEpisodeUuid get() = (transcriptState as? TranscriptState.Loaded)?.transcript?.episodeUuid
 
-    val isSyncedActive get() = syncedState is FingerprintTimingManager.State.Active &&
+    /** A mimi-hub transcript of the playing episode: cue times are playback times, no fingerprinting needed. */
+    val isDirectSyncActive get() = ((transcriptState as? TranscriptState.Loaded)?.transcript as? Transcript.Text)
+        ?.url?.let(MimiHub::isHubTranscriptUrl) == true &&
         transcriptEpisodeUuid != null &&
         transcriptEpisodeUuid == playingEpisodeUuid
+
+    val isSyncedActive get() = isDirectSyncActive ||
+        (
+            syncedState is FingerprintTimingManager.State.Active &&
+                transcriptEpisodeUuid != null &&
+                transcriptEpisodeUuid == playingEpisodeUuid
+            )
 
     val isGeneratedTextTranscript get() = ((transcriptState as? TranscriptState.Loaded)?.transcript as? Transcript.Text)?.isGenerated == true
 
-    val isTapToSeekAvailable get() = isGeneratedTextTranscript &&
-        !isPaywallVisible &&
-        transcriptEpisodeUuid != null &&
-        transcriptEpisodeUuid == playingEpisodeUuid
+    val isTapToSeekAvailable get() = isDirectSyncActive ||
+        (
+            isGeneratedTextTranscript &&
+                !isPaywallVisible &&
+                transcriptEpisodeUuid != null &&
+                transcriptEpisodeUuid == playingEpisodeUuid
+            )
 
     // Passages only exist against the generated transcript, which needs the fingerprint mapping
     // (playing + synced) to place the bookmark on the audio.

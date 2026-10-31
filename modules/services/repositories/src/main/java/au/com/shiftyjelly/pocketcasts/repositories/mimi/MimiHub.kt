@@ -7,10 +7,10 @@ import au.com.shiftyjelly.pocketcasts.models.entity.PodcastEpisode
 import au.com.shiftyjelly.pocketcasts.models.entity.Transcript
 import au.com.shiftyjelly.pocketcasts.preferences.Settings
 import dagger.hilt.android.qualifiers.ApplicationContext
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
-import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -140,7 +140,9 @@ class MimiHub @Inject constructor(
                             attachTranscript(uuid)
                             return@launch
                         }
+
                         "failed", "missing" -> return@launch
+
                         else -> delay(10_000)
                     }
                 }
@@ -203,6 +205,13 @@ class MimiHub @Inject constructor(
 
     companion object {
         const val MIME_TYPE = "audio/x-mimi"
+        private val HUB_VTT = Regex(".*/v1/episodes/[A-Za-z0-9_-]+\\.vtt$")
+
+        /**
+         * True for mimi-hub transcripts. Their cue times are on the timeline of the hub's `.mimi`, which is
+         * what plays, so they can be highlighted / seeked by playback position directly (no fingerprinting).
+         */
+        fun isHubTranscriptUrl(url: String): Boolean = HUB_VTT.matches(url)
         private const val TRANSCRIPT_POLLS = 120 // x 10 s
         private val STARTING = setOf("queued", "starting", "downloading")
         private val STREAMABLE = setOf("encoding", "transcribing", "ready")

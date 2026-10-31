@@ -38,6 +38,8 @@ class AdvancedSettingsViewModelTest {
         whenever(settings.backgroundRefreshPodcasts).thenReturn(UserSetting.Mock(true, mock()))
         whenever(settings.prioritizeSeekAccuracy).thenReturn(UserSetting.Mock(false, mock()))
         whenever(settings.cacheEntirePlayingEpisode).thenReturn(UserSetting.Mock(false, mock()))
+        whenever(settings.stripTrackingRedirects).thenReturn(UserSetting.Mock(true, mock()))
+        whenever(settings.mimiHubUrl).thenReturn(UserSetting.Mock("", mock()))
         viewModel = AdvancedSettingsViewModel(
             settings = settings,
             eventHorizon = EventHorizon(TestEventSink()),

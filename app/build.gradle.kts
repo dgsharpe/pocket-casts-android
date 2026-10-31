@@ -19,6 +19,7 @@ android {
         applicationId = project.property("applicationId").toString()
         targetSdk = project.property("targetSdkVersion") as Int
         multiDexEnabled = true
+        ndk { abiFilters += "arm64-v8a" } // personal build: the Fold 8 (and :mimi is arm64-only)
     }
 
     sourceSets {
@@ -61,7 +62,11 @@ android {
         noCompress += listOf("tflite", "bin")
     }
     packaging {
-        jniLibs { useLegacyPackaging = true }
+        jniLibs {
+            useLegacyPackaging = true
+            // NPU graph ships precompiled (mimi_dec_tx_npu.tflite): no on-device QNN compiler needed
+            excludes += "**/libLiteRtCompilerPlugin_Qualcomm.so"
+        }
     }
 }
 

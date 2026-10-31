@@ -129,7 +129,10 @@ fun TranscriptPage(
             ) {
                 val tapScope = rememberCoroutineScope()
                 val tapToSeekHandler: ((TranscriptEntry, Int) -> Unit)? =
-                    if (FeatureFlag.isEnabled(Feature.SYNCED_TRANSCRIPTS) && uiState.isTapToSeekAvailable && viewModel != null) {
+                    if ((FeatureFlag.isEnabled(Feature.SYNCED_TRANSCRIPTS) || uiState.isDirectSyncActive) &&
+                        uiState.isTapToSeekAvailable &&
+                        viewModel != null
+                    ) {
                         { entry, index ->
                             val applySeek = { seekTarget: Int ->
                                 // Hold the tapped row lit until fingerprinting catches up to the seek.
@@ -392,6 +395,7 @@ private fun HighlightEffect(
 
     val transcript = (uiState.transcriptState as? TranscriptState.Loaded)?.transcript as? Transcript.Text ?: return
     val isSyncedActive = uiState.isSyncedActive
+    val isDirectSync = uiState.isDirectSyncActive // mimi-hub transcript: playback time == cue time
     val latestOnHighlightChanged by rememberUpdatedState(onHighlightChange)
     val latestPendingSeek by rememberUpdatedState(pendingSeek)
     val latestOnConsumePendingSeek by rememberUpdatedState(onConsumePendingSeek)
@@ -424,7 +428,7 @@ private fun HighlightEffect(
                 } else {
                     playbackState?.positionMs ?: continue
                 }
-                val outcome = resolveHighlight(transcript.entries, posMs, fingerprintTimingManager, cueIndexHolder[0])
+                val outcome = resolveHighlight(transcript.entries, posMs, fingerprintTimingManager, cueIndexHolder[0], isDirectSync)
 
                 val pending = latestPendingSeek
                 if (pending != null) {
@@ -477,7 +481,7 @@ private fun HighlightEffect(
                 }
                 latestOnConsumePendingSeek()
             }
-            when (val outcome = resolveHighlight(transcript.entries, posMs, fingerprintTimingManager, cueIndexHolder[0])) {
+            when (val outcome = resolveHighlight(transcript.entries, posMs, fingerprintTimingManager, cueIndexHolder[0], isDirectSync)) {
                 is HighlightOutcome.Show -> {
                     cueIndexHolder[0] = outcome.entryIndex
                     latestOnHighlightChanged(HighlightState(entryIndex = outcome.entryIndex, wordIndex = outcome.wordIndex))
@@ -503,7 +507,9 @@ private fun resolveHighlight(
     posMs: Int,
     fingerprintTimingManager: FingerprintTimingManager,
     cachedIndex: Int,
+    isDirectSync: Boolean,
 ): HighlightOutcome {
+    if (isDirectSync) return TranscriptCueHelper.resolveHighlight(entries, posMs.toLong(), cachedIndex)
     val refTime = fingerprintTimingManager.matchedReferenceTime(forPlaybackTimeMs = posMs)
         ?: return HighlightOutcome.Clear
     // Round, not truncate: truncating lands before a cue boundary and resolves to the prior cue.
