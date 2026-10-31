@@ -323,6 +323,12 @@ interface Settings {
     val prioritizeSeekAccuracy: UserSetting<Boolean>
     val cacheEntirePlayingEpisode: UserSetting<Boolean>
     val liveAnalyticsUrl: UserSetting<String>
+
+    /** Base URL of mimi-hub (episode conversion to `.mimi` + transcripts); blank disables it. */
+    val mimiHubUrl: UserSetting<String>
+
+    /** Fetch episodes straight from their host, skipping ad/analytics prefix redirects (Podtrac, Podscribe…). */
+    val stripTrackingRedirects: UserSetting<Boolean>
     val collectListeningStats: ReadWriteSetting<Boolean>
 
     fun setSelectPodcastsSortType(sortType: PodcastsSortType)

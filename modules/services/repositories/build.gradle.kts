@@ -38,6 +38,7 @@ dependencies {
     api(projects.modules.services.model)
     api(projects.modules.services.payment)
     api(projects.modules.services.preferences)
+    implementation(projects.mimi)
     api(projects.modules.services.protobuf)
     api(projects.modules.services.servers)
     api(projects.modules.services.utils)

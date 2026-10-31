@@ -65,7 +65,25 @@ class AdvancedSettingsViewModel @Inject constructor(
                 )
             },
         ),
+        mimiState = mimiState(),
     )
+
+    private fun mimiState() = State.MimiState(
+        stripTrackingChecked = settings.stripTrackingRedirects.value,
+        onStripTrackingChange = {
+            settings.stripTrackingRedirects.set(it, updateModifiedAt = false)
+            updateMimiState()
+        },
+        hubUrl = settings.mimiHubUrl.value,
+        onHubUrlChange = {
+            settings.mimiHubUrl.set(it.trim(), updateModifiedAt = false)
+            updateMimiState()
+        },
+    )
+
+    private fun updateMimiState() {
+        mutableState.value = mutableState.value.copy(mimiState = mimiState())
+    }
 
     private fun onSyncOnMeteredCheckedChange(isChecked: Boolean) {
         settings.setSyncOnMeteredNetwork(isChecked)
@@ -107,7 +125,15 @@ class AdvancedSettingsViewModel @Inject constructor(
         val backgroundSyncOnMeteredState: BackgroundSyncOnMeteredState,
         val prioritizeSeekAccuracyState: PrioritizeSeekAccuracyState,
         val cacheEntirePlayingEpisodeState: CacheEntirePlayingEpisodeState,
+        val mimiState: MimiState,
     ) {
+
+        data class MimiState(
+            val stripTrackingChecked: Boolean,
+            val onStripTrackingChange: (Boolean) -> Unit,
+            val hubUrl: String,
+            val onHubUrlChange: (String) -> Unit,
+        )
 
         data class BackgroundSyncOnMeteredState(
             val isChecked: Boolean,

@@ -36,6 +36,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import okhttp3.OkHttpClient
+import org.joshjob.mimi.MimiExtractorsFactory
 import timber.log.Timber
 
 @Singleton
@@ -113,21 +114,28 @@ class ExoPlayerDataSourceFactory @Inject constructor(
             .setCustomCacheKey(episodeLocation.episode.uuid)
             .build()
 
-        val extractorsFactory = DefaultExtractorsFactory().setConstantBitrateSeekingEnabled(true)
+        val defaultExtractors = DefaultExtractorsFactory().setConstantBitrateSeekingEnabled(true)
         if (settings.prioritizeSeekAccuracy.value) {
-            extractorsFactory.setMp3ExtractorFlags(Mp3Extractor.FLAG_ENABLE_INDEX_SEEKING)
+            defaultExtractors.setMp3ExtractorFlags(Mp3Extractor.FLAG_ENABLE_INDEX_SEEKING)
         }
+        // `.mimi` first (sniffed by magic bytes), then the usual extractors
+        val extractorsFactory = MimiExtractorsFactory(defaultExtractors)
 
+        // A streamed mimi-hub `.mimi` (~2 MB/hour) skips the episode cache, which is keyed by episode UUID
+        // and may already hold bytes of the original file.
+        val isMimiStream = episodeLocation is EpisodeLocation.Stream && episodeUri.endsWith(".mimi")
         val cacheFactory = cacheFactory
             .setUpstreamDataSourceFactory(playerCacheUpstreamFactory)
             .setCacheWriteDataSinkFactory(null)
-            .takeIf { episodeLocation.shouldUseCache() }
+            .takeIf { episodeLocation.shouldUseCache() && !isMimiStream }
 
-        startCachingEntireEpisodeIfNeeded(
-            cacheDataSourceFactory = cacheFactory,
-            episodeLocation = episodeLocation,
-            onCachingComplete = onCachingComplete,
-        )
+        if (!isMimiStream) {
+            startCachingEntireEpisodeIfNeeded(
+                cacheDataSourceFactory = cacheFactory,
+                episodeLocation = episodeLocation,
+                onCachingComplete = onCachingComplete,
+            )
+        }
 
         val dataFactory = cacheFactory ?: defaultFactory
         // Only DefaultMediaSourceFactory applies the ClippingConfiguration, so clipping must win over HLS.

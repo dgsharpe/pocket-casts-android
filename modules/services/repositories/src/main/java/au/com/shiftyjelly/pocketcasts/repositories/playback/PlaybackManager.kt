@@ -45,6 +45,7 @@ import au.com.shiftyjelly.pocketcasts.preferences.model.PlayOverNotificationSett
 import au.com.shiftyjelly.pocketcasts.repositories.R
 import au.com.shiftyjelly.pocketcasts.repositories.bookmark.BookmarkManager
 import au.com.shiftyjelly.pocketcasts.repositories.chromecast.CastManager
+import au.com.shiftyjelly.pocketcasts.repositories.mimi.MimiHub
 import au.com.shiftyjelly.pocketcasts.repositories.di.NotificationPermissionChecker
 import au.com.shiftyjelly.pocketcasts.repositories.download.DownloadQueue
 import au.com.shiftyjelly.pocketcasts.repositories.fingerprint.GeneratedChapterSeeker
@@ -180,6 +181,7 @@ open class PlaybackManager @Inject constructor(
     private val alternateEnclosureManager: AlternateEnclosureManager,
     private val generatedChapterSeeker: Lazy<GeneratedChapterSeeker>,
     private val playbackServiceErrorReporter: PlaybackServiceErrorReporter,
+    private val mimiHub: MimiHub,
 ) : FocusManager.FocusChangeListener,
     AudioNoisyManager.AudioBecomingNoisyListener,
     CoroutineScope {
@@ -462,6 +464,14 @@ open class PlaybackManager @Inject constructor(
         if (hlsUrl != null && (hlsStreamingEnabled || episode.downloadUrl.isNullOrBlank())) {
             episode.overrideStreamUrl = hlsUrl
             episode.overrideStreamContentType = MimeTypes.APPLICATION_M3U8
+        } else if (!episode.isDownloaded) {
+            // mimi-hub's `.mimi` (~2 MB/hour) if it has the episode (else it starts converting it), or the
+            // original URL without tracking-prefix redirects
+            mimiHub.streamOverride(episode)?.let { override ->
+                episode.overrideStreamUrl = override.url
+                episode.overrideStreamContentType = override.contentType
+                if (override.isMimi) mimiHub.attachTranscript(episode.uuid)
+            }
         }
     }
 

@@ -15,6 +15,7 @@ import au.com.shiftyjelly.pocketcasts.models.type.TrimMode
 import au.com.shiftyjelly.pocketcasts.repositories.fingerprint.FingerprintPcmTap
 import au.com.shiftyjelly.pocketcasts.repositories.fingerprint.FingerprintTapAudioProcessor
 import au.com.shiftyjelly.pocketcasts.repositories.user.StatsManager
+import org.joshjob.mimi.MimiRenderersFactory
 
 /**
  * An [AudioProcessor] that skips silence in the input stream. Input and output are 16-bit
@@ -76,6 +77,8 @@ class ShiftyRenderersFactory(
         out: ArrayList<Renderer>,
     ) {
         this.audioSink = audioSink
+        // `.mimi` (Mimi neural codec) episodes; shares the sink, so speed / trim silence / boost still apply
+        MimiRenderersFactory.addMimiRenderer(context, eventHandler, eventListener, audioSink, out)
         internalRenderer = ShiftyAudioRendererV2(
             customAudio,
             context,

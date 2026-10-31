@@ -40,12 +40,14 @@ import java.io.File
 import java.io.IOException
 import java.net.SocketException
 import java.net.SocketTimeoutException
+import au.com.shiftyjelly.pocketcasts.repositories.mimi.MimiHub
 import java.net.UnknownHostException
 import java.util.UUID
 import javax.net.ssl.SSLException
 import kotlin.time.measureTimedValue
 import kotlinx.coroutines.runBlocking
 import okhttp3.Call
+import org.joshjob.mimi.MimiLibrary
 import au.com.shiftyjelly.pocketcasts.localization.R as LR
 import au.com.shiftyjelly.pocketcasts.repositories.download.EpisodeDownloader.Result as DownloadResult
 
@@ -91,6 +93,7 @@ class DownloadEpisodeWorker @AssistedInject constructor(
     private val progressCache: DownloadProgressCache,
     private val notificationObserver: DownloadNotificationObserver,
     private val episodeDurationFixer: EpisodeDurationFixer,
+    private val mimiHub: MimiHub,
 ) : Worker(context, params) {
     private val args = inputData.toArgs()
 
@@ -137,6 +140,8 @@ class DownloadEpisodeWorker @AssistedInject constructor(
                 prepareForegroundNotification(episode)
 
                 episode = refreshDownloadUrlOrThrow(episode)
+                // Prefer the `.mimi` from mimi-hub (converted on demand); falls back to the original URL.
+                episode = mimiHub.substituteForDownload(episode, isStopped = { isStopped })
                 resolvedEpisode = episode
                 val downloadFile = getDownloadFileOrThrow(episode)
                 val tempFile = fileStorage.getOrCreatePodcastEpisodeTempFile(episode)
@@ -159,6 +164,11 @@ class DownloadEpisodeWorker @AssistedInject constructor(
         return when (val result = timedValue.value) {
             is DownloadResult.Success -> {
                 resolvedEpisode?.let { episodeDurationFixer.fixMissingDuration(it, result.file) }
+                val mimiEpisode = resolvedEpisode?.takeIf { it.fileType == MimiHub.MIME_TYPE }
+                if (mimiEpisode != null) {
+                    runBlocking { mimiHub.attachTranscript(mimiEpisode.uuid) }
+                    MimiLibrary.preloadAsync(context) // warm the decoder (~1-3 s) before playback
+                }
                 val data = Data.Builder()
                     .putString(DOWNLOAD_FILE_PATH_KEY, result.file.path)
                     .build()

@@ -30,6 +30,12 @@ import au.com.shiftyjelly.pocketcasts.compose.preview.ThemePreviewParameterProvi
 import au.com.shiftyjelly.pocketcasts.compose.theme
 import au.com.shiftyjelly.pocketcasts.settings.viewmodel.AdvancedSettingsViewModel
 import au.com.shiftyjelly.pocketcasts.ui.theme.Theme
+import androidx.compose.foundation.clickable
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.text.input.KeyboardType
+import au.com.shiftyjelly.pocketcasts.compose.components.FormFieldDialog
 import au.com.shiftyjelly.pocketcasts.localization.R as LR
 
 /**
@@ -103,6 +109,15 @@ fun AdvancedSettingsView(
                     PrioritizeSeekAccuracydRow(state.prioritizeSeekAccuracyState)
                 }
             }
+            item {
+                SettingSection(
+                    heading = stringResource(LR.string.settings_advanced_heading_mimi),
+                    indent = false,
+                ) {
+                    StripTrackingRow(state.mimiState)
+                    MimiHubUrlRow(state.mimiState)
+                }
+            }
         }
     }
 }
@@ -161,6 +176,53 @@ private fun CacheEntirePlayingEpisodeRow(
     )
 }
 
+@Composable
+private fun StripTrackingRow(
+    state: AdvancedSettingsViewModel.State.MimiState,
+    modifier: Modifier = Modifier,
+) {
+    SettingRow(
+        primaryText = stringResource(LR.string.settings_advanced_strip_tracking),
+        secondaryText = stringResource(LR.string.settings_advanced_strip_tracking_summary),
+        toggle = SettingRowToggle.Switch(state.stripTrackingChecked),
+        indent = false,
+        modifier = modifier.toggleable(
+            value = state.stripTrackingChecked,
+            role = Role.Switch,
+            onValueChange = { state.onStripTrackingChange(it) },
+        ),
+    )
+}
+
+@Composable
+private fun MimiHubUrlRow(
+    state: AdvancedSettingsViewModel.State.MimiState,
+    modifier: Modifier = Modifier,
+) {
+    var showDialog by remember { mutableStateOf(false) }
+    val title = stringResource(LR.string.settings_advanced_mimi_hub_url)
+    val off = stringResource(LR.string.settings_advanced_mimi_hub_url_off)
+    SettingRow(
+        primaryText = title,
+        secondaryText = state.hubUrl.ifBlank { off },
+        indent = false,
+        modifier = modifier.clickable { showDialog = true },
+    )
+    if (showDialog) {
+        FormFieldDialog(
+            title = title,
+            placeholder = "http://<tailscale-ip>:8765",
+            initialValue = state.hubUrl,
+            keyboardType = KeyboardType.Uri,
+            onConfirm = {
+                state.onHubUrlChange(it)
+                showDialog = false
+            },
+            onDismissRequest = { showDialog = false },
+        )
+    }
+}
+
 @Preview(showBackground = true)
 @Composable
 private fun AdvancedSettingsPreview(
@@ -181,6 +243,12 @@ private fun AdvancedSettingsPreview(
                 cacheEntirePlayingEpisodeState = AdvancedSettingsViewModel.State.CacheEntirePlayingEpisodeState(
                     isChecked = true,
                     onCheckedChange = {},
+                ),
+                mimiState = AdvancedSettingsViewModel.State.MimiState(
+                    stripTrackingChecked = true,
+                    onStripTrackingChange = {},
+                    hubUrl = "http://<tailscale-ip>:8765",
+                    onHubUrlChange = {},
                 ),
             ),
             onBackPress = {},

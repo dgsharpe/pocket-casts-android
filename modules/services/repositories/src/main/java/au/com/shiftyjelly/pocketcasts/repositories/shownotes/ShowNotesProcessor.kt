@@ -5,6 +5,7 @@ import au.com.shiftyjelly.pocketcasts.models.entity.PodcastEpisode
 import au.com.shiftyjelly.pocketcasts.models.entity.Transcript
 import au.com.shiftyjelly.pocketcasts.models.to.ChapterOrigin
 import au.com.shiftyjelly.pocketcasts.models.to.DbChapter
+import au.com.shiftyjelly.pocketcasts.repositories.mimi.MimiHub
 import au.com.shiftyjelly.pocketcasts.repositories.podcast.ChapterManager
 import au.com.shiftyjelly.pocketcasts.repositories.podcast.EpisodeManager
 import au.com.shiftyjelly.pocketcasts.repositories.podcast.ImageUrlUpdate
@@ -25,6 +26,7 @@ class ShowNotesProcessor @AssistedInject constructor(
     private val chapterManager: ChapterManager,
     private val transcriptDao: TranscriptDao,
     private val service: PodcastCacheService,
+    private val mimiHub: MimiHub,
     @Assisted private val showNotesBaseUrl: HttpUrl,
 ) {
     @AssistedFactory
@@ -110,7 +112,8 @@ class ShowNotesProcessor @AssistedInject constructor(
             showNotesBaseUrl = showNotesBaseUrl,
         )
         if (transcripts != null) {
-            transcriptDao.replaceAll(transcripts)
+            // replaceAll wipes the episode's rows, so keep mimi-hub's transcript in the new list
+            transcriptDao.replaceAll(transcripts + listOfNotNull(mimiHub.transcriptFor(episodeUuid)))
         }
     }
 

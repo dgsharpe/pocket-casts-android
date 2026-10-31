@@ -54,6 +54,15 @@ android {
     lint {
         checkDependencies = true
     }
+
+    // :mimi (Mimi neural codec): the models are copied out of the APK on first use, so keep them
+    // uncompressed; QNN loads the Hexagon skel from a real file in nativeLibraryDir.
+    androidResources {
+        noCompress += listOf("tflite", "bin")
+    }
+    packaging {
+        jniLibs { useLegacyPackaging = true }
+    }
 }
 
 dependencies {

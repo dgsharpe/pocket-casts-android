@@ -42,6 +42,9 @@ enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
 rootProject.name = "pocket-casts-android"
 
 include(":app")
+// Mimi neural-codec Media3 extension (neural_audio/android/mimi; native code in neural_audio/phone/libmimi)
+include(":mimi")
+project(":mimi").projectDir = file("../android/mimi")
 include(":automotive")
 include(":tv")
 include(":wear")

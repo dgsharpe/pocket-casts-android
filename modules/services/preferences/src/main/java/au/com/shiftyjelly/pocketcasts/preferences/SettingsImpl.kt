@@ -204,6 +204,18 @@ class SettingsImpl @Inject constructor(
         sharedPrefs = sharedPreferences,
     )
 
+    override val mimiHubUrl = UserSetting.StringPref(
+        sharedPrefKey = "mimiHubUrl",
+        defaultValue = "http://<tailscale-ip>:8765", // the server over Tailscale
+        sharedPrefs = sharedPreferences,
+    )
+
+    override val stripTrackingRedirects = UserSetting.BoolPref(
+        sharedPrefKey = "stripTrackingRedirects",
+        defaultValue = true,
+        sharedPrefs = sharedPreferences,
+    )
+
     override val collectListeningStats = UserSetting.BoolPref(
         sharedPrefKey = "collectListeningStats",
         defaultValue = true,
