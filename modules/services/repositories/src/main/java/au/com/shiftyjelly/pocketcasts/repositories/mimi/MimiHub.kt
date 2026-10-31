@@ -10,8 +10,13 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
+import java.util.concurrent.ConcurrentHashMap
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
@@ -57,11 +62,13 @@ class MimiHub @Inject constructor(
     /** The hub's record for [uuid]; state "missing" if the hub doesn't know it, null if unreachable. */
     fun status(uuid: String): JSONObject? = call(Request.Builder().url("$base/v1/episodes/$uuid").build())
 
-    private fun requestConversion(episode: PodcastEpisode, url: String): JSONObject? {
+    /** [priority] 0 = about to be streamed (jumps the hub's queue), 1 = download. */
+    private fun requestConversion(episode: PodcastEpisode, url: String, priority: Int): JSONObject? {
         val body = JSONObject()
             .put("url", url)
             .put("id", episode.uuid)
             .put("title", episode.title)
+            .put("priority", priority)
             .toString()
             .toRequestBody("application/json".toMediaType())
         return call(Request.Builder().url("$base/v1/convert").post(body).build())
@@ -82,12 +89,14 @@ class MimiHub @Inject constructor(
 
     /**
      * Blocking; for DownloadEpisodeWorker. Returns [episode] pointed at the hub's `.mimi` (with fileType
-     * audio/x-mimi so it's saved as `<uuid>.mimi`) when the hub has or can make it within [maxWaitMs],
-     * otherwise [episode] unchanged.
+     * audio/x-mimi so it's saved as `<uuid>.mimi`) as soon as the hub has started encoding it: the hub
+     * serves the file progressively, so the download runs alongside the conversion (~1-2 min per hour of
+     * audio). Otherwise (hub unreachable, failed, or not started within [maxWaitMs]) the original episode,
+     * minus tracking redirects if that setting is on.
      */
     fun substituteForDownload(
         episode: BaseEpisode,
-        maxWaitMs: Long = 8 * 60_000L,
+        maxWaitMs: Long = 3 * 60_000L,
         isStopped: () -> Boolean = { false },
     ): BaseEpisode {
         if (episode !is PodcastEpisode) return episode
@@ -97,19 +106,48 @@ class MimiHub @Inject constructor(
         if (!isEnabled) return fallback
         var s = status(episode.uuid) ?: return fallback
         if (s.optString("state") in setOf("missing", "failed")) {
-            s = requestConversion(episode, original) ?: return fallback
+            s = requestConversion(episode, original, priority = 1) ?: return fallback
         }
         val deadline = System.currentTimeMillis() + maxWaitMs
-        while (s.optString("state") !in setOf("ready", "failed")) {
+        while (s.optString("state") !in setOf("encoding", "transcribing", "ready", "failed")) {
             if (System.currentTimeMillis() > deadline || isStopped()) return fallback
-            Thread.sleep(5_000)
+            Thread.sleep(2_000)
             s = status(episode.uuid) ?: return fallback
         }
         // EpisodeDownloader rejects podcast files under 150 KB; .mimi is 4.4 kb/s, so < ~4.5 min episodes
-        if (s.optString("state") != "ready" || s.optLong("mimi_bytes") < 160_000) return fallback
-        markReady(episode.uuid)
+        if (s.optString("state") == "failed" || s.optLong("mimi_bytes") < 160_000) return fallback
+        attachTranscriptWhenReady(episode.uuid)
         Timber.i("mimi-hub: downloading %s as .mimi (%d bytes)", episode.uuid, s.optLong("mimi_bytes"))
         return episode.copy(downloadUrl = mimiUrl(episode.uuid), fileType = MIME_TYPE)
+    }
+
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val awaitingTranscript = ConcurrentHashMap.newKeySet<String>()
+
+    /** Polls the hub in the background and attaches its transcript once the episode is fully ready. */
+    fun attachTranscriptWhenReady(uuid: String) {
+        if (isKnownReady(uuid)) {
+            scope.launch { attachTranscript(uuid) }
+            return
+        }
+        if (!awaitingTranscript.add(uuid)) return
+        scope.launch {
+            try {
+                repeat(TRANSCRIPT_POLLS) {
+                    when (status(uuid)?.optString("state")) {
+                        "ready" -> {
+                            markReady(uuid)
+                            attachTranscript(uuid)
+                            return@launch
+                        }
+                        "failed", "missing" -> return@launch
+                        else -> delay(10_000)
+                    }
+                }
+            } finally {
+                awaitingTranscript.remove(uuid)
+            }
+        }
     }
 
     /** [url] without tracking-prefix redirects, if that setting is on. */
@@ -119,21 +157,27 @@ class MimiHub @Inject constructor(
     data class StreamOverride(val url: String, val contentType: String?, val isMimi: Boolean)
 
     /**
-     * For streaming: the hub's `.mimi` if it has the episode; otherwise asks the hub to convert it (for next
-     * time) and returns the tracking-stripped original URL when that differs.
+     * For streaming: the hub's `.mimi`, even while the hub is still making it. Asks for a priority conversion
+     * if needed and waits (≤ ~10 s) for the hub to start encoding; the hub then serves the file as it is
+     * encoded (~36x real time) and serves seeks ahead of the encoder first. Falls back to the original URL
+     * (minus tracking redirects, if that setting is on) when the hub is off, unreachable or can't start.
      */
     suspend fun streamOverride(episode: BaseEpisode): StreamOverride? = withContext(Dispatchers.IO) {
         if (episode !is PodcastEpisode) return@withContext null
         val original = episode.downloadUrl?.takeIf { it.isNotBlank() } ?: return@withContext null
         if (isEnabled) {
-            val s = status(episode.uuid)
-            when (s?.optString("state")) {
-                "ready" -> {
-                    markReady(episode.uuid)
-                    return@withContext StreamOverride(mimiUrl(episode.uuid), MIME_TYPE, isMimi = true)
-                }
-                "missing", "failed" -> requestConversion(episode, original)
-                else -> Unit // unreachable, or already converting
+            var state = status(episode.uuid)?.optString("state")
+            if (state == "missing" || state == "failed") {
+                state = requestConversion(episode, original, priority = 0)?.optString("state")
+            }
+            var waits = 0
+            while (state in STARTING && waits++ < 20) {
+                delay(500)
+                state = status(episode.uuid)?.optString("state")
+            }
+            if (state in STREAMABLE) {
+                attachTranscriptWhenReady(episode.uuid)
+                return@withContext StreamOverride(mimiUrl(episode.uuid), MIME_TYPE, isMimi = true)
             }
         }
         cleanUrl(original).takeIf { it != original }?.let { StreamOverride(it, null, isMimi = false) }
@@ -159,5 +203,8 @@ class MimiHub @Inject constructor(
 
     companion object {
         const val MIME_TYPE = "audio/x-mimi"
+        private const val TRANSCRIPT_POLLS = 120 // x 10 s
+        private val STARTING = setOf("queued", "starting", "downloading")
+        private val STREAMABLE = setOf("encoding", "transcribing", "ready")
     }
 }
