@@ -105,8 +105,9 @@ class MimiHub @Inject constructor(
         val fallback = if (clean != original) episode.copy(downloadUrl = clean) else episode
         if (!isEnabled) return fallback
         var s = status(episode.uuid) ?: return fallback
-        if (s.optString("state") in setOf("missing", "failed")) {
-            s = requestConversion(episode, original, priority = 1) ?: return fallback
+        // a user-started download jumps the hub's queue (also bumps a waiting Up Next prefetch)
+        if (s.optString("state") in setOf("missing", "failed", "queued")) {
+            s = requestConversion(episode, original, priority = 0) ?: return fallback
         }
         val deadline = System.currentTimeMillis() + maxWaitMs
         while (s.optString("state") !in setOf("encoding", "transcribing", "ready", "failed")) {
@@ -152,6 +153,34 @@ class MimiHub @Inject constructor(
         }
     }
 
+    private val prefetchRequested = ConcurrentHashMap.newKeySet<String>()
+
+    /**
+     * For queued episodes (MimiQueuePrefetcher): makes sure the hub has, or is making, [episode] at normal
+     * priority, and attaches its transcript once ready. A failed conversion is re-requested at most once
+     * per app session. Blocking network calls; call from Dispatchers.IO.
+     */
+    suspend fun prefetch(episode: PodcastEpisode) {
+        if (!isEnabled || isKnownReady(episode.uuid)) return
+        val url = episode.downloadUrl?.takeIf { it.isNotBlank() } ?: return
+        when (status(episode.uuid)?.optString("state")) {
+            "ready" -> {
+                markReady(episode.uuid)
+                attachTranscript(episode.uuid)
+            }
+
+            "missing" -> {
+                prefetchRequested.add(episode.uuid)
+                requestConversion(episode, url, priority = 1)
+            }
+
+            // retried once per session; if this session's own request failed, leave it
+            "failed" -> if (prefetchRequested.add(episode.uuid)) requestConversion(episode, url, priority = 1)
+
+            else -> Unit // unreachable, or queued / converting
+        }
+    }
+
     /** [url] without tracking-prefix redirects, if that setting is on. */
     fun cleanUrl(url: String): String = if (settings.stripTrackingRedirects.value) TrackingRedirects.strip(url) else url
 
@@ -169,7 +198,7 @@ class MimiHub @Inject constructor(
         val original = episode.downloadUrl?.takeIf { it.isNotBlank() } ?: return@withContext null
         if (isEnabled) {
             var state = status(episode.uuid)?.optString("state")
-            if (state == "missing" || state == "failed") {
+            if (state == "missing" || state == "failed" || state == "queued") { // queued: bump a prefetch
                 state = requestConversion(episode, original, priority = 0)?.optString("state")
             }
             var waits = 0

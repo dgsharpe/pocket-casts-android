@@ -24,6 +24,7 @@ import au.com.shiftyjelly.pocketcasts.repositories.endofyear.EndOfYearSync
 import au.com.shiftyjelly.pocketcasts.repositories.file.FileStorage
 import au.com.shiftyjelly.pocketcasts.repositories.file.StorageOptions
 import au.com.shiftyjelly.pocketcasts.repositories.jobs.VersionMigrationsWorker
+import au.com.shiftyjelly.pocketcasts.repositories.mimi.MimiQueuePrefetcher
 import au.com.shiftyjelly.pocketcasts.repositories.notification.NotificationHelper
 import au.com.shiftyjelly.pocketcasts.repositories.notification.NotificationManager
 import au.com.shiftyjelly.pocketcasts.repositories.playback.PlaybackManager
@@ -126,6 +127,8 @@ class PocketCastsApplication :
     lateinit var applicationScope: CoroutineScope
 
     @Inject lateinit var playerWidgetManager: PlayerWidgetManager
+
+    @Inject lateinit var mimiQueuePrefetcher: MimiQueuePrefetcher
 
     @Inject lateinit var upNextDao: UpNextDao
 
@@ -246,6 +249,9 @@ class PocketCastsApplication :
 
     private fun setupApp() {
         LogBuffer.i("Application", "App started. ${settings.getVersion()} (${settings.getVersionCode()})")
+
+        // mimi-hub: convert queued episodes on the server ahead of time (no-op when the hub URL setting is blank)
+        mimiQueuePrefetcher.start()
 
         applicationScope.launch {
             try {
