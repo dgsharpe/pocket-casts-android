@@ -3,6 +3,8 @@ package au.com.shiftyjelly.pocketcasts.repositories.mimi
 import au.com.shiftyjelly.pocketcasts.coroutines.di.ApplicationScope
 import au.com.shiftyjelly.pocketcasts.models.entity.PodcastEpisode
 import au.com.shiftyjelly.pocketcasts.repositories.playback.UpNextQueue
+import au.com.shiftyjelly.pocketcasts.repositories.podcast.EpisodeManager
+import java.io.File
 import java.util.concurrent.atomic.AtomicBoolean
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -13,6 +15,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -28,6 +31,7 @@ import timber.log.Timber
 class MimiQueuePrefetcher @Inject constructor(
     private val upNextQueue: UpNextQueue,
     private val mimiHub: MimiHub,
+    private val episodeManager: EpisodeManager,
     @ApplicationScope private val scope: CoroutineScope,
 ) {
     private val started = AtomicBoolean(false)
@@ -36,6 +40,7 @@ class MimiQueuePrefetcher @Inject constructor(
     @OptIn(FlowPreview::class)
     fun start() {
         if (!started.compareAndSet(false, true)) return
+        scope.launch(Dispatchers.IO) { fixDownloadedMimiSizes() }
         scope.launch(Dispatchers.IO) {
             upNextQueue.changesFlow.debounce(3_000).collect { sweep() }
         }
@@ -44,6 +49,28 @@ class MimiQueuePrefetcher @Inject constructor(
                 delay(5.minutes)
                 sweep()
             }
+        }
+    }
+
+    /**
+     * Storage screens sum episode.sizeInBytes, which comes from the original enclosure. Downloads made before
+     * DownloadEpisodeWorker recorded the real size (or any that drifted) get the `.mimi` file's actual size.
+     */
+    private suspend fun fixDownloadedMimiSizes() {
+        try {
+            episodeManager.findDownloadedEpisodesFlow().first()
+                .filter { it.downloadedFilePath?.endsWith(".mimi") == true }
+                .forEach { episode ->
+                    val size = episode.downloadedFilePath?.let { File(it).length() } ?: 0L
+                    if (size > 0 && episode.sizeInBytes != size) {
+                        episodeManager.updateSizeInBytesBlocking(episode, size)
+                        Timber.i("mimi: corrected size of %s to %d bytes", episode.uuid, size)
+                    }
+                }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Timber.w(e, "mimi: size correction failed")
         }
     }
 
