@@ -2029,6 +2029,12 @@
     <string name="settings_advanced_heading_mimi" translatable="false">Mimi (the server)</string>
     <string name="settings_advanced_strip_tracking" translatable="false">Skip tracking redirects</string>
     <string name="settings_advanced_strip_tracking_summary" translatable="false">Fetch episodes straight from their host, skipping ad and analytics redirects such as Podtrac, Podscribe and Chartable.</string>
+    <string name="settings_advanced_mimi_skip_ads" translatable="false">Skip ads</string>
+    <string name="settings_advanced_mimi_skip_ads_summary" translatable="false">Jump over ad breaks the server found in the transcript. Works for episodes played as .mimi; seek back into an ad to hear it.</string>
+    <string name="settings_advanced_mimi_skip_promos" translatable="false">Skip self-promotion</string>
+    <string name="settings_advanced_mimi_skip_promos_summary" translatable="false">Also jump over the show\'s own plugs: memberships, tours and events, merch, newsletters.</string>
+    <string name="player_mimi_skipped_ad" translatable="false">Skipped ad break (%d s)</string>
+    <string name="player_mimi_skipped_promo" translatable="false">Skipped self-promotion (%d s)</string>
     <string name="settings_advanced_mimi_hub_url" translatable="false">Mimi converter URL</string>
     <string name="settings_advanced_mimi_hub_url_off" translatable="false">Off. Set a mimi-hub URL to download and stream episodes as compact .mimi files with transcripts.</string>
     <string name="settings_advanced_cache_entire_playing_episode">Cache playing episode</string>

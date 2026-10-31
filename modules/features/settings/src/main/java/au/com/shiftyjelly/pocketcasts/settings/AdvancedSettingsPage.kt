@@ -115,6 +115,18 @@ fun AdvancedSettingsView(
                     indent = false,
                 ) {
                     StripTrackingRow(state.mimiState)
+                    MimiSwitchRow(
+                        primaryText = stringResource(LR.string.settings_advanced_mimi_skip_ads),
+                        secondaryText = stringResource(LR.string.settings_advanced_mimi_skip_ads_summary),
+                        isChecked = state.mimiState.skipAdsChecked,
+                        onCheckedChange = state.mimiState.onSkipAdsChange,
+                    )
+                    MimiSwitchRow(
+                        primaryText = stringResource(LR.string.settings_advanced_mimi_skip_promos),
+                        secondaryText = stringResource(LR.string.settings_advanced_mimi_skip_promos_summary),
+                        isChecked = state.mimiState.skipPromosChecked,
+                        onCheckedChange = state.mimiState.onSkipPromosChange,
+                    )
                     MimiHubUrlRow(state.mimiState)
                 }
             }
@@ -195,6 +207,27 @@ private fun StripTrackingRow(
 }
 
 @Composable
+private fun MimiSwitchRow(
+    primaryText: String,
+    secondaryText: String,
+    isChecked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    SettingRow(
+        primaryText = primaryText,
+        secondaryText = secondaryText,
+        toggle = SettingRowToggle.Switch(isChecked),
+        indent = false,
+        modifier = modifier.toggleable(
+            value = isChecked,
+            role = Role.Switch,
+            onValueChange = onCheckedChange,
+        ),
+    )
+}
+
+@Composable
 private fun MimiHubUrlRow(
     state: AdvancedSettingsViewModel.State.MimiState,
     modifier: Modifier = Modifier,
@@ -247,6 +280,10 @@ private fun AdvancedSettingsPreview(
                 mimiState = AdvancedSettingsViewModel.State.MimiState(
                     stripTrackingChecked = true,
                     onStripTrackingChange = {},
+                    skipAdsChecked = true,
+                    onSkipAdsChange = {},
+                    skipPromosChecked = true,
+                    onSkipPromosChange = {},
                     hubUrl = "http://<tailscale-ip>:8765",
                     onHubUrlChange = {},
                 ),

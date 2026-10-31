@@ -50,6 +50,7 @@ import au.com.shiftyjelly.pocketcasts.repositories.download.DownloadQueue
 import au.com.shiftyjelly.pocketcasts.repositories.fingerprint.GeneratedChapterSeeker
 import au.com.shiftyjelly.pocketcasts.repositories.history.upnext.UpNextHistoryManager
 import au.com.shiftyjelly.pocketcasts.repositories.mimi.MimiHub
+import au.com.shiftyjelly.pocketcasts.repositories.mimi.MimiSegments
 import au.com.shiftyjelly.pocketcasts.repositories.notification.NotificationHelper
 import au.com.shiftyjelly.pocketcasts.repositories.notification.NotificationManager
 import au.com.shiftyjelly.pocketcasts.repositories.notification.NotificationOpenReceiverActivity
@@ -182,6 +183,7 @@ open class PlaybackManager @Inject constructor(
     private val generatedChapterSeeker: Lazy<GeneratedChapterSeeker>,
     private val playbackServiceErrorReporter: PlaybackServiceErrorReporter,
     private val mimiHub: MimiHub,
+    private val mimiSegments: MimiSegments,
 ) : FocusManager.FocusChangeListener,
     AudioNoisyManager.AudioBecomingNoisyListener,
     CoroutineScope {
@@ -1933,6 +1935,16 @@ open class PlaybackManager @Inject constructor(
         }
     }
 
+    /** Jumps past an ad break or self-promotion that mimi-hub found (Settings › Advanced › Mimi). */
+    private suspend fun skipMimiSegment(segment: MimiSegments.Segment) {
+        val skippedMs = segment.endMs - segment.startMs
+        LogBuffer.i(LogBuffer.TAG_PLAYBACK, "Skipping mimi segment %d-%d ms: %s", segment.startMs, segment.endMs, segment.label)
+        seekToTimeMsInternal(segment.endMs.toInt())
+        statsManager.addTimeSavedAutoSkipping(skippedMs)
+        val message = if (segment.isAd) LR.string.player_mimi_skipped_ad else LR.string.player_mimi_skipped_promo
+        showToast(application.getString(message, (skippedMs / 1000).toInt()))
+    }
+
     private suspend fun showToast(message: String) {
         withContext(Dispatchers.Main) {
             Toast.makeText(application, message, Toast.LENGTH_LONG).show()
@@ -2777,6 +2789,11 @@ open class PlaybackManager @Inject constructor(
 
         val positionMs = player?.getCurrentPositionMs() ?: -1
         if (positionMs < 0) {
+            return
+        }
+
+        mimiSegments.toSkip(episode, positionMs.toLong())?.let { segment ->
+            skipMimiSegment(segment)
             return
         }
 

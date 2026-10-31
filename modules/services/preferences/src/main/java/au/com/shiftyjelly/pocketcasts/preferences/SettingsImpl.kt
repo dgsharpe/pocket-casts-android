@@ -216,6 +216,18 @@ class SettingsImpl @Inject constructor(
         sharedPrefs = sharedPreferences,
     )
 
+    override val mimiSkipAds = UserSetting.BoolPref(
+        sharedPrefKey = "mimiSkipAds",
+        defaultValue = true,
+        sharedPrefs = sharedPreferences,
+    )
+
+    override val mimiSkipPromos = UserSetting.BoolPref(
+        sharedPrefKey = "mimiSkipPromos",
+        defaultValue = true,
+        sharedPrefs = sharedPreferences,
+    )
+
     override val collectListeningStats = UserSetting.BoolPref(
         sharedPrefKey = "collectListeningStats",
         defaultValue = true,

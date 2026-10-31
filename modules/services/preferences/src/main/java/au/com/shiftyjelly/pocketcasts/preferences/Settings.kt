@@ -329,6 +329,12 @@ interface Settings {
 
     /** Fetch episodes straight from their host, skipping ad/analytics prefix redirects (Podtrac, Podscribe…). */
     val stripTrackingRedirects: UserSetting<Boolean>
+
+    /** Skip ad breaks mimi-hub found in the transcript (only while playing its `.mimi`). */
+    val mimiSkipAds: UserSetting<Boolean>
+
+    /** Skip the show's self-promotion mimi-hub found in the transcript (memberships, tours, merch…). */
+    val mimiSkipPromos: UserSetting<Boolean>
     val collectListeningStats: ReadWriteSetting<Boolean>
 
     fun setSelectPodcastsSortType(sortType: PodcastsSortType)

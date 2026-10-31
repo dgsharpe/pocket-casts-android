@@ -26,11 +26,13 @@ import timber.log.Timber
  * Has mimi-hub convert everything in Up Next ahead of time: whenever the queue changes (and every few minutes
  * as a backstop) the first [MAX_EPISODES] queued episodes are requested at normal priority, so by the time
  * one is played or downloaded its `.mimi` and transcript are usually ready. Streams still jump the hub's queue.
+ * Ready episodes also get their ad / self-promotion segments cached, so skipping works offline.
  */
 @Singleton
 class MimiQueuePrefetcher @Inject constructor(
     private val upNextQueue: UpNextQueue,
     private val mimiHub: MimiHub,
+    private val mimiSegments: MimiSegments,
     private val episodeManager: EpisodeManager,
     @ApplicationScope private val scope: CoroutineScope,
 ) {
@@ -80,7 +82,10 @@ class MimiQueuePrefetcher @Inject constructor(
             upNextQueue.allEpisodes
                 .filterIsInstance<PodcastEpisode>()
                 .take(MAX_EPISODES)
-                .forEach { mimiHub.prefetch(it) }
+                .forEach {
+                    mimiHub.prefetch(it)
+                    if (mimiHub.isKnownReady(it.uuid)) mimiSegments.get(it.uuid)
+                }
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {

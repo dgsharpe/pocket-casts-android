@@ -62,6 +62,21 @@ class MimiHub @Inject constructor(
     /** The hub's record for [uuid]; state "missing" if the hub doesn't know it, null if unreachable. */
     fun status(uuid: String): JSONObject? = call(Request.Builder().url("$base/v1/episodes/$uuid").build())
 
+    /** The hub's ad / self-promotion segments for [uuid] (JSON); null if none yet or unreachable. */
+    fun segmentsJson(uuid: String): String? = try {
+        client.newCall(Request.Builder().url("$base/v1/episodes/$uuid.segments.json").build()).execute().use { r ->
+            if (r.isSuccessful) r.body.string() else null
+        }
+    } catch (e: Exception) {
+        Timber.i("mimi-hub segments unreachable: %s", e.message)
+        null
+    }
+
+    private val streamingMimi = ConcurrentHashMap.newKeySet<String>()
+
+    /** Whether the last stream of [uuid] was the hub's `.mimi` (rather than the original). */
+    fun isStreamingMimi(uuid: String): Boolean = streamingMimi.contains(uuid)
+
     /** [priority] 0 = about to be streamed (jumps the hub's queue), 1 = download. */
     private fun requestConversion(episode: PodcastEpisode, url: String, priority: Int): JSONObject? {
         val body = JSONObject()
@@ -208,9 +223,11 @@ class MimiHub @Inject constructor(
             }
             if (state in STREAMABLE) {
                 attachTranscriptWhenReady(episode.uuid)
+                streamingMimi.add(episode.uuid)
                 return@withContext StreamOverride(mimiUrl(episode.uuid), MIME_TYPE, isMimi = true)
             }
         }
+        streamingMimi.remove(episode.uuid)
         cleanUrl(original).takeIf { it != original }?.let { StreamOverride(it, null, isMimi = false) }
     }
 
