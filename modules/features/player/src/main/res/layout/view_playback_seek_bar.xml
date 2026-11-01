@@ -5,7 +5,7 @@
     android:layout_height="wrap_content"
     android:theme="@style/PlayerTheme">
 
-    <androidx.appcompat.widget.AppCompatSeekBar
+    <au.com.shiftyjelly.pocketcasts.player.view.SegmentSeekBar
         android:id="@+id/seekBarInternal"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"

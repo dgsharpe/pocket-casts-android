@@ -338,6 +338,9 @@ interface Settings {
 
     /** Also download an episode streamed as mimi-hub `.mimi` (~2 MB/hour), so it plays and seeks offline. */
     val mimiDownloadOnStream: UserSetting<Boolean>
+
+    /** Leave skipped mimi-hub segments out of the seek bar's timeline (scrubbing and skip buttons step over them). */
+    val mimiTrimTimeline: UserSetting<Boolean>
     val collectListeningStats: ReadWriteSetting<Boolean>
 
     fun setSelectPodcastsSortType(sortType: PodcastsSortType)

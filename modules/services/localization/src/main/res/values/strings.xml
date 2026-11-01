@@ -2035,6 +2035,8 @@
     <string name="settings_advanced_mimi_skip_promos_summary" translatable="false">Also jump over the show\'s own plugs: memberships, tours and events, merch, newsletters.</string>
     <string name="settings_advanced_mimi_download_on_stream" translatable="false">Download when streaming</string>
     <string name="settings_advanced_mimi_download_on_stream_summary" translatable="false">Playing an episode as .mimi (about 2 MB an hour) also downloads it, so it keeps playing and seeking without a connection.</string>
+    <string name="settings_advanced_mimi_trim_timeline" translatable="false">Trim skipped segments</string>
+    <string name="settings_advanced_mimi_trim_timeline_summary" translatable="false">Leave the ads and self-promotion you skip out of the seek bar, so scrubbing and the skip buttons never land in them. Otherwise they are highlighted on it.</string>
     <string name="player_mimi_skipped_ad" translatable="false">Skipped ad break (%d s)</string>
     <string name="player_mimi_skipped_promo" translatable="false">Skipped self-promotion (%d s)</string>
     <string name="settings_advanced_mimi_hub_url" translatable="false">Mimi converter URL</string>

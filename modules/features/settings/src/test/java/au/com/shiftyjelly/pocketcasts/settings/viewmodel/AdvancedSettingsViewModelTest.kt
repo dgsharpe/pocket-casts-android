@@ -42,6 +42,7 @@ class AdvancedSettingsViewModelTest {
         whenever(settings.mimiSkipAds).thenReturn(UserSetting.Mock(true, mock()))
         whenever(settings.mimiSkipPromos).thenReturn(UserSetting.Mock(true, mock()))
         whenever(settings.mimiDownloadOnStream).thenReturn(UserSetting.Mock(true, mock()))
+        whenever(settings.mimiTrimTimeline).thenReturn(UserSetting.Mock(false, mock()))
         whenever(settings.mimiHubUrl).thenReturn(UserSetting.Mock("", mock()))
         viewModel = AdvancedSettingsViewModel(
             settings = settings,

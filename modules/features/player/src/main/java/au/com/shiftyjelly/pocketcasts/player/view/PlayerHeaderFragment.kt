@@ -1262,6 +1262,7 @@ class PlayerHeaderFragment :
             chapters = headerData.chapters,
             isBuffering = headerData.isBuffering,
             bufferedUpTo = headerData.bufferedUpToMs.milliseconds,
+            mimiTimeline = headerData.mimiTimeline,
             playerColors = playerColors,
             onSeekToPosition = { progress, onSeekComplete ->
                 val progressMs = progress.inWholeMilliseconds.toInt()

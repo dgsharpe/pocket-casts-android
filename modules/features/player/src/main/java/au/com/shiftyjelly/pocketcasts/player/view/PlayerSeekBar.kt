@@ -8,15 +8,16 @@ import android.view.LayoutInflater
 import android.widget.FrameLayout
 import android.widget.SeekBar
 import android.widget.TextView
-import androidx.appcompat.widget.AppCompatSeekBar
 import androidx.core.graphics.ColorUtils
 import androidx.core.view.isVisible
 import au.com.shiftyjelly.pocketcasts.models.to.Chapters
 import au.com.shiftyjelly.pocketcasts.player.R
+import au.com.shiftyjelly.pocketcasts.repositories.mimi.MimiTimeline
 import au.com.shiftyjelly.pocketcasts.ui.theme.Theme
 import au.com.shiftyjelly.pocketcasts.ui.theme.ThemeColor
 import au.com.shiftyjelly.pocketcasts.utils.toHhMmSs
 import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 import me.zhanghai.android.materialprogressbar.MaterialProgressBar
 import au.com.shiftyjelly.pocketcasts.localization.R as LR
@@ -25,12 +26,17 @@ class PlayerSeekBar @JvmOverloads constructor(context: Context, attrs: Attribute
     private val inflater = context.getSystemService(Context.LAYOUT_INFLATER_SERVICE) as LayoutInflater
     private val view = inflater.inflate(R.layout.view_playback_seek_bar, this)
     private var seeking = false
+
+    // currentTime and duration are on the bar's timeline: the real ones, or trimmed by [timeline]'s cuts
     private var currentTime = Duration.ZERO
     private var duration = Duration.ZERO
+    private var realCurrentTime = Duration.ZERO
+    private var realDuration = Duration.ZERO
+    private var timeline: MimiTimeline? = null
     private var chapters = Chapters()
     private var playbackSpeed = 1.0
     private var adjustDuration = false
-    private val seekBar = view.findViewById(R.id.seekBarInternal) as AppCompatSeekBar
+    private val seekBar = view.findViewById(R.id.seekBarInternal) as SegmentSeekBar
     private val elapsedTimeText = view.findViewById(R.id.elapsedTime) as TextView
     private val remainingTimeText = view.findViewById(R.id.remainingTime) as TextView
     private val bufferingSeekbar = view.findViewById(R.id.indeterminateProgressBar) as MaterialProgressBar
@@ -38,7 +44,7 @@ class PlayerSeekBar @JvmOverloads constructor(context: Context, attrs: Attribute
     var bufferedUpToInSecs: Int = 0
         set(value) {
             field = value
-            seekBar.secondaryProgress = value
+            seekBar.secondaryProgress = toBar(value.seconds).inWholeSeconds.toInt()
         }
 
     var isBuffering: Boolean = false
@@ -62,10 +68,25 @@ class PlayerSeekBar @JvmOverloads constructor(context: Context, attrs: Attribute
         if (seeking) {
             return
         }
-        this.currentTime = currentTime
-        seekBar.progress = currentTime.inWholeSeconds.toInt()
+        realCurrentTime = currentTime
+        this.currentTime = toBar(currentTime)
+        seekBar.progress = this.currentTime.inWholeSeconds.toInt()
         updateTextViews()
     }
+
+    /** mimi-hub's ad / self-promotion segments to highlight, and any to cut from the timeline (null: none). */
+    fun setTimeline(timeline: MimiTimeline?) {
+        if (timeline == this.timeline) return
+        this.timeline = timeline
+        seekBar.segments = timeline?.shown.orEmpty()
+        setDuration(realDuration)
+        seekBar.secondaryProgress = toBar(bufferedUpToInSecs.seconds).inWholeSeconds.toInt()
+        if (!seeking) setCurrentTime(realCurrentTime)
+    }
+
+    private fun toBar(real: Duration): Duration = timeline?.toTrimmed(real.inWholeMilliseconds)?.milliseconds ?: real
+
+    private fun toReal(bar: Duration): Duration = timeline?.toReal(bar.inWholeMilliseconds)?.milliseconds ?: bar
 
     fun setChapters(chapters: Chapters) {
         if (seeking) {
@@ -76,8 +97,9 @@ class PlayerSeekBar @JvmOverloads constructor(context: Context, attrs: Attribute
     }
 
     fun setDuration(duration: Duration) {
-        this.duration = duration
-        seekBar.max = duration.inWholeSeconds.toInt()
+        realDuration = duration
+        this.duration = toBar(duration)
+        seekBar.max = this.duration.inWholeSeconds.toInt()
         updateTextViews()
     }
 
@@ -106,7 +128,7 @@ class PlayerSeekBar @JvmOverloads constructor(context: Context, attrs: Attribute
         seekBar.secondaryProgress = 0
         seekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onStopTrackingTouch(seekBar: SeekBar) {
-                changeListener?.onSeekPositionChangeStop(currentTime) {
+                changeListener?.onSeekPositionChangeStop(toReal(currentTime)) {
                     seeking = false
                 }
             }
@@ -122,7 +144,7 @@ class PlayerSeekBar @JvmOverloads constructor(context: Context, attrs: Attribute
                 currentTime = progressSecs.seconds
                 updateTextViews()
 
-                changeListener?.onSeekPositionChanging(currentTime)
+                changeListener?.onSeekPositionChanging(toReal(currentTime))
             }
         })
     }
@@ -151,7 +173,7 @@ class PlayerSeekBar @JvmOverloads constructor(context: Context, attrs: Attribute
 
     private fun remainingDuration(): Duration {
         return if (adjustDuration) {
-            (duration - currentTime - chapters.skippedChaptersDuration(currentTime)) / playbackSpeed
+            (duration - currentTime - chapters.skippedChaptersDuration(toReal(currentTime))) / playbackSpeed
         } else {
             duration - currentTime
         }.coerceAtLeast(Duration.ZERO)

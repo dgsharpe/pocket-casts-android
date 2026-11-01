@@ -234,6 +234,12 @@ class SettingsImpl @Inject constructor(
         sharedPrefs = sharedPreferences,
     )
 
+    override val mimiTrimTimeline = UserSetting.BoolPref(
+        sharedPrefKey = "mimiTrimTimeline",
+        defaultValue = false,
+        sharedPrefs = sharedPreferences,
+    )
+
     override val collectListeningStats = UserSetting.BoolPref(
         sharedPrefKey = "collectListeningStats",
         defaultValue = true,

@@ -128,6 +128,12 @@ fun AdvancedSettingsView(
                         onCheckedChange = state.mimiState.onSkipPromosChange,
                     )
                     MimiSwitchRow(
+                        primaryText = stringResource(LR.string.settings_advanced_mimi_trim_timeline),
+                        secondaryText = stringResource(LR.string.settings_advanced_mimi_trim_timeline_summary),
+                        isChecked = state.mimiState.trimTimelineChecked,
+                        onCheckedChange = state.mimiState.onTrimTimelineChange,
+                    )
+                    MimiSwitchRow(
                         primaryText = stringResource(LR.string.settings_advanced_mimi_download_on_stream),
                         secondaryText = stringResource(LR.string.settings_advanced_mimi_download_on_stream_summary),
                         isChecked = state.mimiState.downloadOnStreamChecked,
@@ -290,6 +296,8 @@ private fun AdvancedSettingsPreview(
                     onSkipAdsChange = {},
                     skipPromosChecked = true,
                     onSkipPromosChange = {},
+                    trimTimelineChecked = false,
+                    onTrimTimelineChange = {},
                     downloadOnStreamChecked = true,
                     onDownloadOnStreamChange = {},
                     hubUrl = "http://<tailscale-ip>:8765",

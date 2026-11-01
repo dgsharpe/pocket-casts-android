@@ -91,6 +91,24 @@ class MimiSegments @Inject constructor(
         null
     }
 
+    /**
+     * What [episode]'s seek bar shows: all its segments, and as cuts the kinds being skipped when "Trim skipped
+     * segments" is on. Null unless the hub's `.mimi` is what plays (other files' times don't line up) and segments
+     * are known.
+     */
+    fun timelineFor(episode: BaseEpisode): MimiTimeline? {
+        if (!isPlayingMimi(episode)) return null
+        val segments = get(episode.uuid)?.takeIf { it.isNotEmpty() } ?: return null
+        val cuts = if (settings.mimiTrimTimeline.value) {
+            val skipAds = settings.mimiSkipAds.value
+            val skipPromos = settings.mimiSkipPromos.value
+            segments.filter { if (it.isAd) skipAds else skipPromos }
+        } else {
+            emptyList()
+        }
+        return MimiTimeline(segments, cuts)
+    }
+
     private fun isPlayingMimi(episode: BaseEpisode): Boolean = if (episode.isDownloaded) {
         episode.downloadedFilePath?.endsWith(".mimi") == true
     } else {

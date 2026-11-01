@@ -32,6 +32,8 @@ import au.com.shiftyjelly.pocketcasts.repositories.di.IoDispatcher
 import au.com.shiftyjelly.pocketcasts.repositories.download.DownloadQueue
 import au.com.shiftyjelly.pocketcasts.repositories.download.DownloadType
 import au.com.shiftyjelly.pocketcasts.repositories.fingerprint.GeneratedChapterSeeker
+import au.com.shiftyjelly.pocketcasts.repositories.mimi.MimiSegments
+import au.com.shiftyjelly.pocketcasts.repositories.mimi.MimiTimeline
 import au.com.shiftyjelly.pocketcasts.repositories.playback.PlaybackManager
 import au.com.shiftyjelly.pocketcasts.repositories.playback.PlaybackNoticeManager
 import au.com.shiftyjelly.pocketcasts.repositories.playback.PlaybackState
@@ -104,6 +106,7 @@ class PlayerViewModel @Inject constructor(
     private val settings: Settings,
     private val theme: Theme,
     private val eventHorizon: EventHorizon,
+    private val mimiSegments: MimiSegments,
     blazeAdsManager: BlazeAdsManager,
     @ApplicationContext private val context: Context,
     @IoDispatcher private val ioDispatcher: CoroutineDispatcher,
@@ -137,6 +140,7 @@ class PlayerViewModel @Inject constructor(
         val bufferedUpToMs: Int = 0,
         val theme: Theme.ThemeType = Theme.ThemeType.DARK,
         val useEpisodeArtwork: Boolean = false,
+        val mimiTimeline: MimiTimeline? = null,
     ) {
         val podcastUuid = (episode as? PodcastEpisode)?.podcastUuid
         val episodeUuid = episode?.uuid.orEmpty()
@@ -448,6 +452,7 @@ class PlayerViewModel @Inject constructor(
                 bufferedUpToMs = playbackState.bufferedMs,
                 theme = theme.activeTheme,
                 useEpisodeArtwork = artworkConfiguration.useEpisodeArtwork,
+                mimiTimeline = mimiSegments.timelineFor(episode),
             )
         }
         val chapters = playbackState.chapters

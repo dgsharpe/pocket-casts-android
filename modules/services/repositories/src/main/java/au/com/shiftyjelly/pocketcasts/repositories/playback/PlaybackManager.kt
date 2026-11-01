@@ -1267,7 +1267,10 @@ open class PlaybackManager @Inject constructor(
         val currentTimeMs = getCurrentTimeMs(episode = episode)
         if (currentTimeMs < 0 || player?.episodeUuid != episode.uuid) return // Make sure the player hasn't changed episodes before using the current time to seek
 
-        val newPositionMs = currentTimeMs + jumpAmountMs
+        // with a trimmed mimi timeline, jump in trimmed time so cut ads / self-promotion don't count or catch it
+        val trimmed = mimiSegments.timelineFor(episode)?.takeIf { it.isTrimmed }
+        val newPositionMs = trimmed?.toReal(trimmed.toTrimmed(currentTimeMs.toLong()) + jumpAmountMs)?.toInt()
+            ?: (currentTimeMs + jumpAmountMs)
         val durationMs = player?.durationMs() ?: Int.MAX_VALUE // If we don't have a duration, just let them skip
 
         statsManager.addTimeSavedSkipping((newPositionMs - currentTimeMs).toLong())
@@ -1302,7 +1305,9 @@ open class PlaybackManager @Inject constructor(
         val currentTimeMs = getCurrentTimeMs(episode = episode)
         if (currentTimeMs < 0) return
 
-        val newPositionMs = (currentTimeMs - jumpAmountMs).coerceAtLeast(0)
+        val trimmed = mimiSegments.timelineFor(episode)?.takeIf { it.isTrimmed }
+        val newPositionMs = trimmed?.toReal((trimmed.toTrimmed(currentTimeMs.toLong()) - jumpAmountMs).coerceAtLeast(0))?.toInt()
+            ?: (currentTimeMs - jumpAmountMs).coerceAtLeast(0)
         seekToTimeMsInternal(newPositionMs)
 
         trackPlaybackEvent(sourceView) { source, contentType ->
