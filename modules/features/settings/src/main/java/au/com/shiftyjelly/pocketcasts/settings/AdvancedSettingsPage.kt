@@ -128,6 +128,12 @@ fun AdvancedSettingsView(
                     )
                     StripTrackingRow(state.mimiState)
                     MimiSwitchRow(
+                        primaryText = stringResource(LR.string.settings_advanced_mimi_prefetch_wifi_only),
+                        secondaryText = stringResource(LR.string.settings_advanced_mimi_prefetch_wifi_only_summary),
+                        isChecked = state.mimiState.prefetchOnlyOnWifiChecked,
+                        onCheckedChange = state.mimiState.onPrefetchOnlyOnWifiChange,
+                    )
+                    MimiSwitchRow(
                         primaryText = stringResource(LR.string.settings_advanced_mimi_skip_ads),
                         secondaryText = stringResource(LR.string.settings_advanced_mimi_skip_ads_summary),
                         isChecked = state.mimiState.skipAdsChecked,
@@ -308,6 +314,8 @@ private fun AdvancedSettingsPreview(
                     onConvertByDefaultChange = {},
                     transcribeByDefaultChecked = true,
                     onTranscribeByDefaultChange = {},
+                    prefetchOnlyOnWifiChecked = true,
+                    onPrefetchOnlyOnWifiChange = {},
                     skipAdsChecked = true,
                     onSkipAdsChange = {},
                     skipPromosChecked = true,

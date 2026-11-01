@@ -1,5 +1,14 @@
 package au.com.shiftyjelly.pocketcasts.repositories.mimi
 
+import android.content.Context
+import android.net.NetworkCapabilities
+import au.com.shiftyjelly.pocketcasts.preferences.Settings
+import au.com.shiftyjelly.pocketcasts.repositories.playback.NetworkConnectionWatcher
+import au.com.shiftyjelly.pocketcasts.utils.Network
+import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.map
 import au.com.shiftyjelly.pocketcasts.coroutines.di.ApplicationScope
 import au.com.shiftyjelly.pocketcasts.models.entity.PodcastEpisode
 import au.com.shiftyjelly.pocketcasts.repositories.playback.UpNextQueue
@@ -30,6 +39,9 @@ import timber.log.Timber
  */
 @Singleton
 class MimiQueuePrefetcher @Inject constructor(
+    @ApplicationContext private val context: Context,
+    private val settings: Settings,
+    private val networkConnectionWatcher: NetworkConnectionWatcher,
     private val upNextQueue: UpNextQueue,
     private val mimiHub: MimiHub,
     private val mimiSegments: MimiSegments,
@@ -38,6 +50,7 @@ class MimiQueuePrefetcher @Inject constructor(
 ) {
     private val started = AtomicBoolean(false)
     private val sweepLock = Mutex()
+    private var retryJob: kotlinx.coroutines.Job? = null
 
     @OptIn(FlowPreview::class)
     fun start() {
@@ -47,10 +60,12 @@ class MimiQueuePrefetcher @Inject constructor(
             upNextQueue.changesFlow.debounce(3_000).collect { sweep() }
         }
         scope.launch(Dispatchers.IO) {
-            while (isActive) {
-                delay(5.minutes)
-                sweep()
-            }
+            networkConnectionWatcher.networkCapabilities
+                .map { it?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true }
+                .distinctUntilChanged()
+                .filter { it }
+                .debounce(3_000)
+                .collect { sweep() }
         }
     }
 
@@ -76,16 +91,29 @@ class MimiQueuePrefetcher @Inject constructor(
         }
     }
 
-    private suspend fun sweep() = sweepLock.withLock {
+    private suspend fun sweep(): Unit = sweepLock.withLock {
         if (!mimiHub.isEnabled) return@withLock
+        if (settings.mimiPrefetchOnlyOnWifi.value && !Network.isWifiConnection(context)) return@withLock
         try {
-            upNextQueue.allEpisodes
-                .filterIsInstance<PodcastEpisode>()
-                .take(MAX_EPISODES)
-                .forEach {
-                    mimiHub.prefetch(it)
-                    if (mimiHub.isKnownReady(it.uuid)) mimiSegments.get(it.uuid)
+            val current = upNextQueue.currentEpisode as? PodcastEpisode
+            val queue = upNextQueue.allEpisodes.filterIsInstance<PodcastEpisode>()
+            val candidates = (listOfNotNull(current) + queue).distinctBy { it.uuid }.take(MAX_EPISODES)
+            var hasPending = false
+            candidates.forEach { episode ->
+                val pending = mimiHub.prefetch(episode)
+                if (mimiHub.isKnownReady(episode.uuid)) {
+                    mimiSegments.get(episode.uuid)
+                } else if (pending) {
+                    hasPending = true
                 }
+            }
+            retryJob?.cancel()
+            if (hasPending) {
+                retryJob = scope.launch(Dispatchers.IO) {
+                    delay(RETRY_DELAY_MS)
+                    sweep()
+                }
+            }
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
@@ -95,5 +123,6 @@ class MimiQueuePrefetcher @Inject constructor(
 
     private companion object {
         const val MAX_EPISODES = 30
+        const val RETRY_DELAY_MS = 30_000L
     }
 }

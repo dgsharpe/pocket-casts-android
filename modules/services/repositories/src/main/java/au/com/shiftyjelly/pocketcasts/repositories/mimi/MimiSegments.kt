@@ -126,9 +126,9 @@ class MimiSegments @Inject constructor(
     private fun isPlayingMimi(episode: BaseEpisode): Boolean {
         if (episode is PodcastEpisode && !mimiHub.transcribes(episode)) return false
         return if (episode.isDownloaded) {
-            episode.downloadedFilePath?.endsWith(".mimi") == true || mimiHub.isHubSource(episode.uuid)
+            episode.downloadedFilePath?.endsWith(".mimi") == true || mimiHub.isHubSource(episode.uuid) || mimiHub.isKnownReady(episode.uuid)
         } else {
-            mimiHub.isStreamingHub(episode.uuid)
+            mimiHub.isStreamingHub(episode.uuid) || mimiHub.isKnownReady(episode.uuid)
         }
     }
 
