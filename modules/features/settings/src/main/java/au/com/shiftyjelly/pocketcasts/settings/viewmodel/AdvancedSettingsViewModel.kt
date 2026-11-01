@@ -74,6 +74,11 @@ class AdvancedSettingsViewModel @Inject constructor(
             settings.stripTrackingRedirects.set(it, updateModifiedAt = false)
             updateMimiState()
         },
+        convertByDefaultChecked = settings.mimiConvertByDefault.value,
+        onConvertByDefaultChange = {
+            settings.mimiConvertByDefault.set(it, updateModifiedAt = false)
+            updateMimiState()
+        },
         skipAdsChecked = settings.mimiSkipAds.value,
         onSkipAdsChange = {
             settings.mimiSkipAds.set(it, updateModifiedAt = false)
@@ -151,6 +156,8 @@ class AdvancedSettingsViewModel @Inject constructor(
         data class MimiState(
             val stripTrackingChecked: Boolean,
             val onStripTrackingChange: (Boolean) -> Unit,
+            val convertByDefaultChecked: Boolean,
+            val onConvertByDefaultChange: (Boolean) -> Unit,
             val skipAdsChecked: Boolean,
             val onSkipAdsChange: (Boolean) -> Unit,
             val skipPromosChecked: Boolean,

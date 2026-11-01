@@ -44,6 +44,7 @@ class MimiHub @Inject constructor(
     private val transcriptDao: TranscriptDao,
 ) {
     private val prefs = context.getSharedPreferences("mimi_hub", Context.MODE_PRIVATE)
+    private val podcastPrefs = context.getSharedPreferences("mimi_podcasts", Context.MODE_PRIVATE)
     private val client = OkHttpClient.Builder()
         .connectTimeout(3, TimeUnit.SECONDS)
         .readTimeout(20, TimeUnit.SECONDS)
@@ -58,6 +59,24 @@ class MimiHub @Inject constructor(
     fun vttUrl(uuid: String) = "$base/v1/episodes/$uuid.vtt"
 
     fun isKnownReady(uuid: String): Boolean = prefs.getBoolean(uuid, false)
+
+    /** [podcastUuid]'s own choice (podcast settings); [MimiConversion.Default] follows the global setting. */
+    fun conversionFor(podcastUuid: String): MimiConversion = podcastPrefs.getString(podcastUuid, null)
+        ?.let { name -> MimiConversion.entries.firstOrNull { it.name == name } }
+        ?: MimiConversion.Default
+
+    fun setConversion(podcastUuid: String, conversion: MimiConversion) {
+        podcastPrefs.edit().apply {
+            if (conversion == MimiConversion.Default) remove(podcastUuid) else putString(podcastUuid, conversion.name)
+        }.apply()
+    }
+
+    /** Whether [episode] goes through the hub: hub configured, and its podcast's choice (or the default) is on. */
+    fun converts(episode: PodcastEpisode): Boolean = isEnabled && when (conversionFor(episode.podcastUuid)) {
+        MimiConversion.On -> true
+        MimiConversion.Off -> false
+        MimiConversion.Default -> settings.mimiConvertByDefault.value
+    }
 
     /** The hub's record for [uuid]; state "missing" if the hub doesn't know it, null if unreachable. */
     fun status(uuid: String): JSONObject? = call(Request.Builder().url("$base/v1/episodes/$uuid").build())
@@ -118,7 +137,7 @@ class MimiHub @Inject constructor(
         val original = episode.downloadUrl?.takeIf { it.isNotBlank() } ?: return episode
         val clean = cleanUrl(original)
         val fallback = if (clean != original) episode.copy(downloadUrl = clean) else episode
-        if (!isEnabled) return fallback
+        if (!converts(episode)) return fallback
         var s = status(episode.uuid) ?: return fallback
         // a user-started download jumps the hub's queue (also bumps a waiting Up Next prefetch)
         if (s.optString("state") in setOf("missing", "failed", "queued")) {
@@ -176,7 +195,7 @@ class MimiHub @Inject constructor(
      * per app session. Blocking network calls; call from Dispatchers.IO.
      */
     suspend fun prefetch(episode: PodcastEpisode) {
-        if (!isEnabled || isKnownReady(episode.uuid)) return
+        if (!converts(episode) || isKnownReady(episode.uuid)) return
         val url = episode.downloadUrl?.takeIf { it.isNotBlank() } ?: return
         when (status(episode.uuid)?.optString("state")) {
             "ready" -> {
@@ -211,7 +230,7 @@ class MimiHub @Inject constructor(
     suspend fun streamOverride(episode: BaseEpisode): StreamOverride? = withContext(Dispatchers.IO) {
         if (episode !is PodcastEpisode) return@withContext null
         val original = episode.downloadUrl?.takeIf { it.isNotBlank() } ?: return@withContext null
-        if (isEnabled) {
+        if (converts(episode)) {
             var state = status(episode.uuid)?.optString("state")
             if (state == "missing" || state == "failed" || state == "queued") { // queued: bump a prefetch
                 state = requestConversion(episode, original, priority = 0)?.optString("state")

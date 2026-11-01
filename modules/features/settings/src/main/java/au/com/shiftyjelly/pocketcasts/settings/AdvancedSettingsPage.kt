@@ -114,6 +114,12 @@ fun AdvancedSettingsView(
                     heading = stringResource(LR.string.settings_advanced_heading_mimi),
                     indent = false,
                 ) {
+                    MimiSwitchRow(
+                        primaryText = stringResource(LR.string.settings_advanced_mimi_convert),
+                        secondaryText = stringResource(LR.string.settings_advanced_mimi_convert_summary),
+                        isChecked = state.mimiState.convertByDefaultChecked,
+                        onCheckedChange = state.mimiState.onConvertByDefaultChange,
+                    )
                     StripTrackingRow(state.mimiState)
                     MimiSwitchRow(
                         primaryText = stringResource(LR.string.settings_advanced_mimi_skip_ads),
@@ -292,6 +298,8 @@ private fun AdvancedSettingsPreview(
                 mimiState = AdvancedSettingsViewModel.State.MimiState(
                     stripTrackingChecked = true,
                     onStripTrackingChange = {},
+                    convertByDefaultChecked = true,
+                    onConvertByDefaultChange = {},
                     skipAdsChecked = true,
                     onSkipAdsChange = {},
                     skipPromosChecked = true,

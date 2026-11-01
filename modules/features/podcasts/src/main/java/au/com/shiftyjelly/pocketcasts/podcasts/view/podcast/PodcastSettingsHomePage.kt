@@ -46,6 +46,7 @@ import au.com.shiftyjelly.pocketcasts.models.type.SmartRules
 import au.com.shiftyjelly.pocketcasts.models.type.SmartRules.PodcastsRule
 import au.com.shiftyjelly.pocketcasts.podcasts.R
 import au.com.shiftyjelly.pocketcasts.podcasts.viewmodel.PodcastSettingsViewModel
+import au.com.shiftyjelly.pocketcasts.repositories.mimi.MimiConversion
 import au.com.shiftyjelly.pocketcasts.repositories.playlist.Playlist
 import au.com.shiftyjelly.pocketcasts.repositories.playlist.SmartPlaylistPreview
 import au.com.shiftyjelly.pocketcasts.ui.theme.Theme.ThemeType
@@ -64,6 +65,7 @@ internal fun PodcastSettingsHomePage(
     onChangeUpNextGlobalSettings: () -> Unit,
     onChangeAutoArchiveSettings: () -> Unit,
     onChangePlaybackEffectsSettings: () -> Unit,
+    onChangeMimiConversion: () -> Unit,
     onDecrementSkipFirst: () -> Unit,
     onIncrementSkipFirst: () -> Unit,
     onDecrementSkipLast: () -> Unit,
@@ -207,6 +209,16 @@ internal fun PodcastSettingsHomePage(
                 onClick = onChangePlaybackEffectsSettings,
             ),
         )
+        SettingRow(
+            primaryText = stringResource(LR.string.podcast_settings_mimi_conversion),
+            secondaryText = mimiConversionLabel(uiState.mimiConversion, uiState.mimiConvertsByDefault),
+            icon = painterResource(IR.drawable.ic_audio_card),
+            iconTint = iconTint,
+            modifier = Modifier.clickable(
+                role = Role.Button,
+                onClick = onChangeMimiConversion,
+            ),
+        )
         Row(
             verticalAlignment = Alignment.Companion.CenterVertically,
             modifier = Modifier
@@ -309,6 +321,21 @@ internal fun PodcastSettingsHomePage(
     }
 }
 
+@Composable
+internal fun mimiConversionLabel(conversion: MimiConversion, convertsByDefault: Boolean): String = stringResource(
+    when (conversion) {
+        MimiConversion.Default -> if (convertsByDefault) {
+            LR.string.podcast_settings_mimi_conversion_default_on
+        } else {
+            LR.string.podcast_settings_mimi_conversion_default_off
+        }
+
+        MimiConversion.On -> LR.string.podcast_settings_mimi_conversion_on
+
+        MimiConversion.Off -> LR.string.podcast_settings_mimi_conversion_off
+    },
+)
+
 @Preview
 @Composable
 private fun PodcastSettingsHomePagePreview(
@@ -349,6 +376,7 @@ private fun PodcastSettingsHomePagePreview(
             onChangeUpNextGlobalSettings = {},
             onChangeAutoArchiveSettings = {},
             onChangePlaybackEffectsSettings = {},
+            onChangeMimiConversion = {},
             onDecrementSkipFirst = {},
             onIncrementSkipFirst = {},
             onDecrementSkipLast = {},

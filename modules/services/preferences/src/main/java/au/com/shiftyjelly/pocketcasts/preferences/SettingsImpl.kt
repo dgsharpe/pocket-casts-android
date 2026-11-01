@@ -222,6 +222,12 @@ class SettingsImpl @Inject constructor(
         sharedPrefs = sharedPreferences,
     )
 
+    override val mimiConvertByDefault = UserSetting.BoolPref(
+        sharedPrefKey = "mimiConvertByDefault",
+        defaultValue = true,
+        sharedPrefs = sharedPreferences,
+    )
+
     override val mimiSkipPromos = UserSetting.BoolPref(
         sharedPrefKey = "mimiSkipPromos",
         defaultValue = true,

@@ -11,6 +11,8 @@ import au.com.shiftyjelly.pocketcasts.models.type.EpisodeDownloadStatus
 import au.com.shiftyjelly.pocketcasts.models.type.SmartRules.PodcastsRule
 import au.com.shiftyjelly.pocketcasts.models.type.TrimMode
 import au.com.shiftyjelly.pocketcasts.preferences.Settings
+import au.com.shiftyjelly.pocketcasts.repositories.mimi.MimiConversion
+import au.com.shiftyjelly.pocketcasts.repositories.mimi.MimiHub
 import au.com.shiftyjelly.pocketcasts.repositories.playback.PlaybackManager
 import au.com.shiftyjelly.pocketcasts.repositories.playlist.PlaylistManager
 import au.com.shiftyjelly.pocketcasts.repositories.playlist.SmartPlaylistPreview
@@ -61,9 +63,11 @@ class PodcastSettingsViewModel @AssistedInject constructor(
     private val playbackManager: PlaybackManager,
     private val settings: Settings,
     private val eventHorizon: EventHorizon,
+    private val mimiHub: MimiHub,
     @Assisted private val podcastUuid: String,
 ) : ViewModel() {
     private val podcastFlow = MutableStateFlow<Podcast?>(null)
+    private val mimiConversionFlow = MutableStateFlow(mimiHub.conversionFor(podcastUuid))
     private val playlistsFlow = MutableStateFlow<List<SmartPlaylistPreview>?>(null)
 
     init {
@@ -88,9 +92,10 @@ class PodcastSettingsViewModel @AssistedInject constructor(
         playlistsFlow,
         settings.autoAddUpNextLimit.flow,
         settings.autoDownloadNewEpisodes.flow.map { it == Podcast.AUTO_DOWNLOAD_NEW_EPISODES },
-    ) { podcast, playlists, upNextLimit, isGlobalAutoDownloadEnabled ->
+        combine(mimiConversionFlow, settings.mimiConvertByDefault.flow) { conversion, byDefault -> conversion to byDefault },
+    ) { podcast, playlists, upNextLimit, isGlobalAutoDownloadEnabled, (mimiConversion, mimiByDefault) ->
         if (podcast != null && playlists != null) {
-            UiState(podcast, playlists, upNextLimit, isGlobalAutoDownloadEnabled)
+            UiState(podcast, playlists, upNextLimit, isGlobalAutoDownloadEnabled, mimiConversion, mimiByDefault)
         } else {
             null
         }
@@ -142,6 +147,11 @@ class PodcastSettingsViewModel @AssistedInject constructor(
             podcastFlow.update { it?.copy(autoAddToUpNext = mode) }
             podcastManager.updateAutoAddToUpNext(podcast, mode)
         }
+    }
+
+    fun changeMimiConversion(conversion: MimiConversion) {
+        mimiHub.setConversion(podcastUuid, conversion)
+        mimiConversionFlow.value = conversion
     }
 
     fun changeAddToUpNext(mode: Podcast.AutoAddUpNext) {
@@ -439,6 +449,8 @@ class PodcastSettingsViewModel @AssistedInject constructor(
         val playlists: List<SmartPlaylistPreview>,
         val globalUpNextLimit: Int,
         val isGlobalAutoDownloadEnabled: Boolean,
+        val mimiConversion: MimiConversion = MimiConversion.Default,
+        val mimiConvertsByDefault: Boolean = true,
     ) {
         val selectedPlaylists = playlists
             .filter { playlist ->

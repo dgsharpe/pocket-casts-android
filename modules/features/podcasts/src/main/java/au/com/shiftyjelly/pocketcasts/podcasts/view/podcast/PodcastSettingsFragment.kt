@@ -97,6 +97,7 @@ class PodcastSettingsFragment :
                 onChangeAutoArchiveAfterInactiveSetting = ::showAutoArchiveAfterInactiveDialog,
                 onChangeAutoArchiveLimitSetting = ::showAutoArchiveLimitDialog,
                 onChangePlaybackEffects = viewModel::changePlaybackEffects,
+                onChangeMimiConversion = ::showMimiConversionDialog,
                 onDecrementPlaybackSpeed = viewModel::decrementPlaybackSpeed,
                 onIncrementPlaybackSpeed = viewModel::incrementPlaybackSpeed,
                 onChangeTrimMode = viewModel::changeTrimMode,
@@ -124,6 +125,13 @@ class PodcastSettingsFragment :
     override fun onDestroyView() {
         super.onDestroyView()
         this.navController = null
+    }
+
+    private fun showMimiConversionDialog() {
+        if (viewModel.uiState.value == null || childFragmentManager.findFragmentByTag("podcast-mimi") != null) {
+            return
+        }
+        MimiConversionFragment().show(childFragmentManager, "podcast-mimi")
     }
 
     private fun showUpNextPositionDialog() {
