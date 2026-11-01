@@ -17,7 +17,7 @@ import au.com.shiftyjelly.pocketcasts.repositories.mimi.MimiConversion
 import au.com.shiftyjelly.pocketcasts.views.fragments.BaseDialogFragment
 import au.com.shiftyjelly.pocketcasts.localization.R as LR
 
-/** Default / On / Off for this podcast's the server compression, or (transcripts = true) its transcripts and ad marks. */
+/** Default / On / Off for this podcast's compression on the Mimi server, or (transcripts = true) its transcripts and ad marks. */
 internal class MimiConversionFragment : BaseDialogFragment() {
     private val viewModel by viewModels<PodcastSettingsViewModel>({ requireParentFragment() })
     private val transcripts get() = requireArguments().getBoolean(ARG_TRANSCRIPTS)

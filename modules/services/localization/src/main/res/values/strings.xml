@@ -2026,21 +2026,21 @@
     <string name="settings_advanced_sync_on_metered_summary">Permits automatic background sync on metered networks. This is enabled by default and has no effect if background refresh is turned off.</string>
     <string name="settings_advanced_prioritize_seek_accuracy">Prioritizing seek accuracy</string>
     <string name="settings_advanced_prioritize_seek_accuracy_summary">Prioritizing seek accuracy can significantly slow down seek responsiveness and cause Pocket Casts to consume more data.</string>
-    <string name="settings_advanced_heading_mimi" translatable="false">Mimi (the server)</string>
+    <string name="settings_advanced_heading_mimi" translatable="false">Mimi server</string>
     <string name="settings_advanced_strip_tracking" translatable="false">Skip tracking redirects</string>
     <string name="settings_advanced_strip_tracking_summary" translatable="false">Fetch episodes straight from their host, skipping ad and analytics redirects such as Podtrac, Podscribe and Chartable.</string>
     <string name="settings_advanced_mimi_convert" translatable="false">Compress episodes</string>
-    <string name="settings_advanced_mimi_convert_summary" translatable="false">Download and stream episodes as compact .mimi files from the server (about 2 MB an hour). Default for every podcast; change it for one show in its podcast settings.</string>
+    <string name="settings_advanced_mimi_convert_summary" translatable="false">Download and stream episodes as compact .mimi files from the Mimi server (about 2 MB an hour). Default for every podcast; change it for one show in its podcast settings.</string>
     <string name="settings_advanced_mimi_transcribe" translatable="false">Transcripts and ad marks</string>
-    <string name="settings_advanced_mimi_transcribe_summary" translatable="false">The server\'s transcripts with speakers, and its ad and self-promotion marks. Without compression, the episode\'s original audio comes from the server so the timings match. Default for every podcast.</string>
-    <string name="podcast_settings_mimi_conversion" translatable="false">Compress with the server</string>
+    <string name="settings_advanced_mimi_transcribe_summary" translatable="false">The Mimi server\'s transcripts with speakers, and its ad and self-promotion marks. Without compression, the episode\'s original audio comes from the Mimi server so the timings match. Default for every podcast.</string>
+    <string name="podcast_settings_mimi_conversion" translatable="false">Compress with Mimi</string>
     <string name="podcast_settings_mimi_transcripts" translatable="false">Transcripts and ad marks</string>
     <string name="podcast_settings_mimi_conversion_default_on" translatable="false">Default (on)</string>
     <string name="podcast_settings_mimi_conversion_default_off" translatable="false">Default (off)</string>
     <string name="podcast_settings_mimi_conversion_on" translatable="false">On</string>
     <string name="podcast_settings_mimi_conversion_off" translatable="false">Off</string>
     <string name="settings_advanced_mimi_skip_ads" translatable="false">Skip ads</string>
-    <string name="settings_advanced_mimi_skip_ads_summary" translatable="false">Jump over ad breaks the server found in the transcript. Works for episodes played as .mimi; seek back into an ad to hear it.</string>
+    <string name="settings_advanced_mimi_skip_ads_summary" translatable="false">Jump over ad breaks the Mimi server found in the transcript. Works for episodes played as .mimi; seek back into an ad to hear it.</string>
     <string name="settings_advanced_mimi_skip_promos" translatable="false">Skip self-promotion</string>
     <string name="settings_advanced_mimi_skip_promos_summary" translatable="false">Also jump over the show\'s own plugs: memberships, tours and events, merch, newsletters.</string>
     <string name="settings_advanced_mimi_download_on_stream" translatable="false">Download when streaming</string>

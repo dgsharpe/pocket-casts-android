@@ -472,7 +472,7 @@ class PodcastSettingsViewModel @AssistedInject constructor(
             }
     }
 
-    /** This podcast's the server choices and the global defaults they fall back to. */
+    /** This podcast's Mimi server choices and the global defaults they fall back to. */
     data class MimiChoices(
         val compression: MimiConversion = MimiConversion.Default,
         val compressesByDefault: Boolean = true,
