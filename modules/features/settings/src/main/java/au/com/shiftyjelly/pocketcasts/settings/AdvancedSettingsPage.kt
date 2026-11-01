@@ -127,6 +127,12 @@ fun AdvancedSettingsView(
                         isChecked = state.mimiState.skipPromosChecked,
                         onCheckedChange = state.mimiState.onSkipPromosChange,
                     )
+                    MimiSwitchRow(
+                        primaryText = stringResource(LR.string.settings_advanced_mimi_download_on_stream),
+                        secondaryText = stringResource(LR.string.settings_advanced_mimi_download_on_stream_summary),
+                        isChecked = state.mimiState.downloadOnStreamChecked,
+                        onCheckedChange = state.mimiState.onDownloadOnStreamChange,
+                    )
                     MimiHubUrlRow(state.mimiState)
                 }
             }
@@ -284,6 +290,8 @@ private fun AdvancedSettingsPreview(
                     onSkipAdsChange = {},
                     skipPromosChecked = true,
                     onSkipPromosChange = {},
+                    downloadOnStreamChecked = true,
+                    onDownloadOnStreamChange = {},
                     hubUrl = "http://<tailscale-ip>:8765",
                     onHubUrlChange = {},
                 ),

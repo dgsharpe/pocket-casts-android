@@ -84,6 +84,11 @@ class AdvancedSettingsViewModel @Inject constructor(
             settings.mimiSkipPromos.set(it, updateModifiedAt = false)
             updateMimiState()
         },
+        downloadOnStreamChecked = settings.mimiDownloadOnStream.value,
+        onDownloadOnStreamChange = {
+            settings.mimiDownloadOnStream.set(it, updateModifiedAt = false)
+            updateMimiState()
+        },
         hubUrl = settings.mimiHubUrl.value,
         onHubUrlChange = {
             settings.mimiHubUrl.set(it.trim(), updateModifiedAt = false)
@@ -145,6 +150,8 @@ class AdvancedSettingsViewModel @Inject constructor(
             val onSkipAdsChange: (Boolean) -> Unit,
             val skipPromosChecked: Boolean,
             val onSkipPromosChange: (Boolean) -> Unit,
+            val downloadOnStreamChecked: Boolean,
+            val onDownloadOnStreamChange: (Boolean) -> Unit,
             val hubUrl: String,
             val onHubUrlChange: (String) -> Unit,
         )

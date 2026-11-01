@@ -47,6 +47,7 @@ import au.com.shiftyjelly.pocketcasts.repositories.bookmark.BookmarkManager
 import au.com.shiftyjelly.pocketcasts.repositories.chromecast.CastManager
 import au.com.shiftyjelly.pocketcasts.repositories.di.NotificationPermissionChecker
 import au.com.shiftyjelly.pocketcasts.repositories.download.DownloadQueue
+import au.com.shiftyjelly.pocketcasts.repositories.download.DownloadType
 import au.com.shiftyjelly.pocketcasts.repositories.fingerprint.GeneratedChapterSeeker
 import au.com.shiftyjelly.pocketcasts.repositories.history.upnext.UpNextHistoryManager
 import au.com.shiftyjelly.pocketcasts.repositories.mimi.MimiHub
@@ -472,7 +473,14 @@ open class PlaybackManager @Inject constructor(
             mimiHub.streamOverride(episode)?.let { override ->
                 episode.overrideStreamUrl = override.url
                 episode.overrideStreamContentType = override.contentType
-                if (override.isMimi) mimiHub.attachTranscript(episode.uuid)
+                if (override.isMimi) {
+                    mimiHub.attachTranscript(episode.uuid)
+                    // ~2 MB/hour: download the whole episode too. Once it's done, the episode observer in
+                    // loadCurrentEpisode switches playback to the file at the current position.
+                    if (settings.mimiDownloadOnStream.value) {
+                        downloadQueue.enqueue(episode.uuid, DownloadType.UserTriggered(waitForWifi = false), SourceView.PLAYER)
+                    }
+                }
             }
         }
     }

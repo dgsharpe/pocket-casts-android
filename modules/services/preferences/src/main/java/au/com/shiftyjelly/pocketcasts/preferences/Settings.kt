@@ -335,6 +335,9 @@ interface Settings {
 
     /** Skip the show's self-promotion mimi-hub found in the transcript (memberships, tours, merch…). */
     val mimiSkipPromos: UserSetting<Boolean>
+
+    /** Also download an episode streamed as mimi-hub `.mimi` (~2 MB/hour), so it plays and seeks offline. */
+    val mimiDownloadOnStream: UserSetting<Boolean>
     val collectListeningStats: ReadWriteSetting<Boolean>
 
     fun setSelectPodcastsSortType(sortType: PodcastsSortType)

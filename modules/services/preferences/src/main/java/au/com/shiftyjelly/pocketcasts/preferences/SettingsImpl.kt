@@ -228,6 +228,12 @@ class SettingsImpl @Inject constructor(
         sharedPrefs = sharedPreferences,
     )
 
+    override val mimiDownloadOnStream = UserSetting.BoolPref(
+        sharedPrefKey = "mimiDownloadOnStream",
+        defaultValue = true,
+        sharedPrefs = sharedPreferences,
+    )
+
     override val collectListeningStats = UserSetting.BoolPref(
         sharedPrefKey = "collectListeningStats",
         defaultValue = true,
