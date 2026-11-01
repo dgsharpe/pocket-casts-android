@@ -100,6 +100,19 @@ class MimiHub @Inject constructor(
 
     fun srcUrl(uuid: String) = "$base/v1/episodes/$uuid.src"
 
+    /** This podcast wants the .mimi and the hub makes them (a hub run with MIMI_HUB_COMPRESS=0 doesn't). */
+    private fun hubCompresses(episode: PodcastEpisode, status: JSONObject?) = compresses(episode) && status?.optBoolean("compressed", true) != false
+
+    /** The hub can serve the original it processed: kept, or (MIMI_HUB_SOURCES=fetch) re-fetched from the publisher
+     * and still the same file. 409 when the publisher's file changed, e.g. different dynamically inserted ads. */
+    private fun sourceServable(uuid: String): Boolean = try {
+        val request = Request.Builder().url(srcUrl(uuid)).header("Range", "bytes=0-0").build()
+        client.newCall(request).execute().use { r -> r.isSuccessful.also { if (!it) Timber.i("mimi-hub .src: %d", r.code) } }
+    } catch (e: Exception) {
+        Timber.i("mimi-hub .src unreachable: %s", e.message)
+        false
+    }
+
     /** Downloads made from the hub's kept original ([srcUrl]); their timeline is the hub's, like a .mimi's. */
     fun markHubSource(uuid: String) = prefs.edit().putBoolean("src:$uuid", true).apply()
 
@@ -167,12 +180,13 @@ class MimiHub @Inject constructor(
         val clean = cleanUrl(original)
         val fallback = if (clean != original) episode.copy(downloadUrl = clean) else episode
         if (!usesHub(episode)) return fallback
-        val compress = compresses(episode)
         var s = status(episode.uuid) ?: return fallback
+        var compress = hubCompresses(episode, s)
         // a user-started download jumps the hub's queue (also bumps a waiting Up Next prefetch); transcripts
         // without compression need the hub to have kept the original
         if (s.optString("state") in setOf("missing", "failed", "queued") || (!compress && !s.optBoolean("keep_source"))) {
             s = requestConversion(episode, original, priority = 0) ?: return fallback
+            compress = hubCompresses(episode, s)
         }
         fun started(s: JSONObject) = if (compress) {
             s.optString("state") in setOf("encoding", "transcribing", "ready", "failed")
@@ -188,6 +202,7 @@ class MimiHub @Inject constructor(
         if (s.optString("state") == "failed") return fallback
         if (transcribes(episode)) attachTranscriptWhenReady(episode.uuid)
         if (!compress) {
+            if (!sourceServable(episode.uuid)) return fallback // the publisher's file changed: no hub timings
             Timber.i("mimi-hub: downloading %s's original from the hub (%d bytes)", episode.uuid, s.optLong("source_bytes"))
             return episode.copy(downloadUrl = srcUrl(episode.uuid))
         }
@@ -272,18 +287,20 @@ class MimiHub @Inject constructor(
         if (episode !is PodcastEpisode) return@withContext null
         val original = episode.downloadUrl?.takeIf { it.isNotBlank() } ?: return@withContext null
         if (usesHub(episode)) {
-            val compress = compresses(episode)
             var s = status(episode.uuid)
-            if (s?.optString("state") in setOf("missing", "failed", "queued") || (!compress && s?.optBoolean("keep_source") == false)) {
+            if (s?.optString("state") in setOf("missing", "failed", "queued") ||
+                (!hubCompresses(episode, s) && s?.optBoolean("keep_source") == false)
+            ) {
                 s = requestConversion(episode, original, priority = 0) // queued: bump a prefetch
             }
+            val compress = hubCompresses(episode, s)
             fun ready(s: JSONObject?) = if (compress) s?.optString("state") in STREAMABLE else s?.optBoolean("source_ready") == true
             var waits = 0
             while (s != null && !ready(s) && s.optString("state") != "failed" && waits++ < 20) {
                 delay(500)
                 s = status(episode.uuid)
             }
-            if (ready(s)) {
+            if (ready(s) && (compress || sourceServable(episode.uuid))) {
                 if (transcribes(episode)) attachTranscriptWhenReady(episode.uuid)
                 streamingHub.add(episode.uuid)
                 return@withContext if (compress) {
