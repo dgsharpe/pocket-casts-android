@@ -1,6 +1,7 @@
 package au.com.shiftyjelly.pocketcasts.repositories.mimi
 
 import android.content.Context
+import java.io.File
 import au.com.shiftyjelly.pocketcasts.models.db.dao.TranscriptDao
 import au.com.shiftyjelly.pocketcasts.models.entity.BaseEpisode
 import au.com.shiftyjelly.pocketcasts.models.entity.PodcastEpisode
@@ -53,6 +54,7 @@ class MimiHub @Inject constructor(
     private val base: String get() = settings.mimiHubUrl.value.trim().trimEnd('/')
 
     val isEnabled: Boolean get() = base.isNotEmpty()
+    val isSummariesEnabled: Boolean get() = isEnabled && settings.mimiShowSummaries.value
 
     fun mimiUrl(uuid: String) = "$base/v1/episodes/$uuid.mimi"
 
@@ -332,7 +334,66 @@ class MimiHub @Inject constructor(
         val ours = transcriptFor(uuid) ?: return
         val existing = transcriptDao.observeTranscripts(uuid).first()
         if (existing.none { it.url == ours.url }) transcriptDao.replaceAll(existing + ours)
+        if (isSummariesEnabled) fetchSummaryAsync(uuid)
     }
+
+fun summaryUrl(uuid: String) = "$base/v1/episodes/$uuid.summary.json"
+
+    private val summaryDir by lazy { File(context.filesDir, "mimi_summaries").apply { mkdirs() } }
+    private val summaryCache = ConcurrentHashMap<String, String>()
+
+    fun getSummary(uuid: String): String? {
+        if (!isSummariesEnabled) return null
+        summaryCache[uuid]?.let { return it }
+        val file = File(summaryDir, "$uuid.html")
+        if (file.exists()) {
+            val text = file.readText()
+            summaryCache[uuid] = text
+            return text
+        }
+        fetchSummaryAsync(uuid)
+        return null
+    }
+
+    fun fetchSummaryAsync(uuid: String) {
+        if (!isSummariesEnabled) return
+        scope.launch {
+            fetchSummaryDirect(uuid)
+        }
+    }
+
+    suspend fun fetchSummaryDirect(uuid: String): String? = withContext(Dispatchers.IO) {
+        if (!isSummariesEnabled) return@withContext null
+        try {
+            val req = Request.Builder().url(summaryUrl(uuid)).build()
+            client.newCall(req).execute().use { res ->
+                if (!res.isSuccessful) return@withContext null
+                val body = res.body.string()
+                val json = JSONObject(body)
+                val summary = json.optString("summary", "")
+                if (summary.isNotEmpty()) {
+                    summaryDir.mkdirs()
+                    File(summaryDir, "$uuid.html").writeText(summary)
+                    summaryCache[uuid] = summary
+                    return@withContext summary
+                }
+            }
+        } catch (e: Exception) {
+            Timber.w(e, "Failed to fetch summary for $uuid")
+        }
+        null
+    }
+
+    fun formatSummaryCard(summaryHtml: String): String {
+        return """
+            <div style="background-color: rgba(128,128,128,0.12); border-left: 4px solid #f43f5e; padding: 14px; margin-bottom: 20px; border-radius: 8px;">
+                <h3 style="margin-top: 0; margin-bottom: 10px; color: #f43f5e;">✨ Episode Summary & Highlights</h3>
+                $summaryHtml
+            </div>
+            <hr style="opacity: 0.2; margin-bottom: 20px;" />
+        """.trimIndent()
+    }
+
 
     companion object {
         const val MIME_TYPE = "audio/x-mimi"

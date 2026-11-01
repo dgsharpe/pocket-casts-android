@@ -84,6 +84,11 @@ class AdvancedSettingsViewModel @Inject constructor(
             settings.mimiTranscribeByDefault.set(it, updateModifiedAt = false)
             updateMimiState()
         },
+        showSummariesChecked = settings.mimiShowSummaries.value,
+        onShowSummariesChange = {
+            settings.mimiShowSummaries.set(it, updateModifiedAt = false)
+            updateMimiState()
+        },
         skipAdsChecked = settings.mimiSkipAds.value,
         onSkipAdsChange = {
             settings.mimiSkipAds.set(it, updateModifiedAt = false)
@@ -165,6 +170,8 @@ class AdvancedSettingsViewModel @Inject constructor(
             val onConvertByDefaultChange: (Boolean) -> Unit,
             val transcribeByDefaultChecked: Boolean,
             val onTranscribeByDefaultChange: (Boolean) -> Unit,
+            val showSummariesChecked: Boolean,
+            val onShowSummariesChange: (Boolean) -> Unit,
             val skipAdsChecked: Boolean,
             val onSkipAdsChange: (Boolean) -> Unit,
             val skipPromosChecked: Boolean,

@@ -2039,7 +2039,9 @@
     <string name="podcast_settings_mimi_conversion_default_off" translatable="false">Default (off)</string>
     <string name="podcast_settings_mimi_conversion_on" translatable="false">On</string>
     <string name="podcast_settings_mimi_conversion_off" translatable="false">Off</string>
-    <string name="settings_advanced_mimi_skip_ads" translatable="false">Skip ads</string>
+        <string name="settings_advanced_mimi_show_summaries" translatable="false">Episode summaries</string>
+    <string name="settings_advanced_mimi_show_summaries_summary" translatable="false">Show AI summaries and highlights from the Mimi server at the top of episode show notes.</string>
+<string name="settings_advanced_mimi_skip_ads" translatable="false">Skip ads</string>
     <string name="settings_advanced_mimi_skip_ads_summary" translatable="false">Jump over ad breaks the Mimi server found in the transcript. Works for episodes played as .mimi; seek back into an ad to hear it.</string>
     <string name="settings_advanced_mimi_skip_promos" translatable="false">Skip self-promotion</string>
     <string name="settings_advanced_mimi_skip_promos_summary" translatable="false">Also jump over the show\'s own plugs: memberships, tours and events, merch, newsletters.</string>

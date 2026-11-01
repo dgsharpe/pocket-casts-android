@@ -336,6 +336,9 @@ interface Settings {
     /** Use mimi-hub's transcripts and ad marks unless a podcast's own setting says otherwise (podcast settings). */
     val mimiTranscribeByDefault: UserSetting<Boolean>
 
+    /** Show mimi-hub's AI-generated highlights and summaries in episode show notes. */
+    val mimiShowSummaries: UserSetting<Boolean>
+
     /** Skip ad breaks mimi-hub found in the transcript (only while playing its `.mimi`). */
     val mimiSkipAds: UserSetting<Boolean>
 
