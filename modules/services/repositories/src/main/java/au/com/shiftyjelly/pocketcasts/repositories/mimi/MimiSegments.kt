@@ -157,7 +157,7 @@ class MimiSegments @Inject constructor(
     }
 
     private companion object {
-        const val RETRY_MS = 60_000L
+        const val RETRY_MS = 15_000L // the hub has them ~15 s after the transcript text; one tiny request
         const val FRESH_START_MS = 3_000L
         const val MAX_TICK_MS = 6_000L // 1 s ticks at up to 5x speed
         const val MIN_LEFT_MS = 1_000L
