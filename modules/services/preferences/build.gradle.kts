@@ -9,6 +9,12 @@ android {
     buildFeatures {
         buildConfig = true
     }
+    defaultConfig {
+        // default mimi-hub URL: blank (no hub) unless the build sets the Gradle property mimiHubUrl, e.g. in
+        // ~/.gradle/gradle.properties, which stays out of the repo
+        val mimiHubUrl = providers.gradleProperty("mimiHubUrl").getOrElse("")
+        buildConfigField("String", "MIMI_HUB_URL", "\"$mimiHubUrl\"")
+    }
 }
 
 dependencies {

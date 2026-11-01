@@ -268,7 +268,7 @@ private fun MimiHubUrlRow(
     if (showDialog) {
         FormFieldDialog(
             title = title,
-            placeholder = "http://<tailscale-ip>:8765",
+            placeholder = "http://your-hub:8765",
             initialValue = state.hubUrl,
             keyboardType = KeyboardType.Uri,
             onConfirm = {
@@ -316,7 +316,7 @@ private fun AdvancedSettingsPreview(
                     onTrimTimelineChange = {},
                     downloadOnStreamChecked = true,
                     onDownloadOnStreamChange = {},
-                    hubUrl = "http://<tailscale-ip>:8765",
+                    hubUrl = "http://your-hub:8765",
                     onHubUrlChange = {},
                 ),
             ),

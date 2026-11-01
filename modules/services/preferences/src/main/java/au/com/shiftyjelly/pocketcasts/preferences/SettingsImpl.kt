@@ -206,7 +206,7 @@ class SettingsImpl @Inject constructor(
 
     override val mimiHubUrl = UserSetting.StringPref(
         sharedPrefKey = "mimiHubUrl",
-        defaultValue = "http://<tailscale-ip>:8765", // the server over Tailscale
+        defaultValue = BuildConfig.MIMI_HUB_URL, // the build's mimiHubUrl Gradle property; blank: no hub
         sharedPrefs = sharedPreferences,
     )
 
