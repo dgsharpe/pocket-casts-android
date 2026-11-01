@@ -330,8 +330,11 @@ interface Settings {
     /** Fetch episodes straight from their host, skipping ad/analytics prefix redirects (Podtrac, Podscribe…). */
     val stripTrackingRedirects: UserSetting<Boolean>
 
-    /** Convert episodes with mimi-hub unless a podcast's own setting says otherwise (podcast settings). */
+    /** Play mimi-hub's compressed .mimi unless a podcast's own setting says otherwise (podcast settings). */
     val mimiConvertByDefault: UserSetting<Boolean>
+
+    /** Use mimi-hub's transcripts and ad marks unless a podcast's own setting says otherwise (podcast settings). */
+    val mimiTranscribeByDefault: UserSetting<Boolean>
 
     /** Skip ad breaks mimi-hub found in the transcript (only while playing its `.mimi`). */
     val mimiSkipAds: UserSetting<Boolean>

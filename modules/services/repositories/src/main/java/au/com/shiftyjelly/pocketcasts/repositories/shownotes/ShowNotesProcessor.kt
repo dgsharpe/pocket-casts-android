@@ -113,7 +113,7 @@ class ShowNotesProcessor @AssistedInject constructor(
         )
         if (transcripts != null) {
             // replaceAll wipes the episode's rows, so keep mimi-hub's transcript in the new list
-            transcriptDao.replaceAll(transcripts + listOfNotNull(mimiHub.transcriptFor(episodeUuid)))
+            transcriptDao.replaceAll(transcripts + listOfNotNull(mimiHub.transcriptFor(episodeUuid, podcastUuid)))
         }
     }
 

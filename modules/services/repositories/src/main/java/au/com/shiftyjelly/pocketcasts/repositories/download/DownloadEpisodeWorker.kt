@@ -164,12 +164,15 @@ class DownloadEpisodeWorker @AssistedInject constructor(
         return when (val result = timedValue.value) {
             is DownloadResult.Success -> {
                 resolvedEpisode?.let { episodeDurationFixer.fixMissingDuration(it, result.file) }
-                val mimiEpisode = resolvedEpisode?.takeIf { it.fileType == MimiHub.MIME_TYPE }
-                if (mimiEpisode != null) {
+                val hubEpisode = resolvedEpisode as? PodcastEpisode
+                if (hubEpisode != null && hubEpisode.fileType == MimiHub.MIME_TYPE) {
                     // storage screens sum the stored size, which came from the original (MP3) enclosure
-                    episodeManager.updateSizeInBytesBlocking(mimiEpisode, result.file.length())
-                    runBlocking { mimiHub.attachTranscript(mimiEpisode.uuid) }
+                    episodeManager.updateSizeInBytesBlocking(hubEpisode, result.file.length())
+                    if (mimiHub.transcribes(hubEpisode)) runBlocking { mimiHub.attachTranscript(hubEpisode.uuid) }
                     MimiLibrary.preloadAsync(context) // warm the decoder (~1-3 s) before playback
+                } else if (hubEpisode != null && hubEpisode.downloadUrl == mimiHub.srcUrl(hubEpisode.uuid)) {
+                    mimiHub.markHubSource(hubEpisode.uuid) // the hub's original: its transcript / ads line up
+                    runBlocking { mimiHub.attachTranscript(hubEpisode.uuid) }
                 }
                 val data = Data.Builder()
                     .putString(DOWNLOAD_FILE_PATH_KEY, result.file.path)

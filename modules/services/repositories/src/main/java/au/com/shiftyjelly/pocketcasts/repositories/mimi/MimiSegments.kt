@@ -2,6 +2,7 @@ package au.com.shiftyjelly.pocketcasts.repositories.mimi
 
 import android.content.Context
 import au.com.shiftyjelly.pocketcasts.models.entity.BaseEpisode
+import au.com.shiftyjelly.pocketcasts.models.entity.PodcastEpisode
 import au.com.shiftyjelly.pocketcasts.preferences.Settings
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.File
@@ -120,10 +121,15 @@ class MimiSegments @Inject constructor(
         return get(uuid).orEmpty().filter { if (it.isAd) skipAds else skipPromos }
     }
 
-    private fun isPlayingMimi(episode: BaseEpisode): Boolean = if (episode.isDownloaded) {
-        episode.downloadedFilePath?.endsWith(".mimi") == true
-    } else {
-        mimiHub.isStreamingMimi(episode.uuid)
+    /** The hub's audio is playing (its .mimi, or the original it kept: the segments' timeline) and the podcast
+     * wants the server's ad marks. */
+    private fun isPlayingMimi(episode: BaseEpisode): Boolean {
+        if (episode is PodcastEpisode && !mimiHub.transcribes(episode)) return false
+        return if (episode.isDownloaded) {
+            episode.downloadedFilePath?.endsWith(".mimi") == true || mimiHub.isHubSource(episode.uuid)
+        } else {
+            mimiHub.isStreamingHub(episode.uuid)
+        }
     }
 
     /**

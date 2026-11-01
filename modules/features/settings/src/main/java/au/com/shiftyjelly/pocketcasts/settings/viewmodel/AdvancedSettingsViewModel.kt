@@ -79,6 +79,11 @@ class AdvancedSettingsViewModel @Inject constructor(
             settings.mimiConvertByDefault.set(it, updateModifiedAt = false)
             updateMimiState()
         },
+        transcribeByDefaultChecked = settings.mimiTranscribeByDefault.value,
+        onTranscribeByDefaultChange = {
+            settings.mimiTranscribeByDefault.set(it, updateModifiedAt = false)
+            updateMimiState()
+        },
         skipAdsChecked = settings.mimiSkipAds.value,
         onSkipAdsChange = {
             settings.mimiSkipAds.set(it, updateModifiedAt = false)
@@ -158,6 +163,8 @@ class AdvancedSettingsViewModel @Inject constructor(
             val onStripTrackingChange: (Boolean) -> Unit,
             val convertByDefaultChecked: Boolean,
             val onConvertByDefaultChange: (Boolean) -> Unit,
+            val transcribeByDefaultChecked: Boolean,
+            val onTranscribeByDefaultChange: (Boolean) -> Unit,
             val skipAdsChecked: Boolean,
             val onSkipAdsChange: (Boolean) -> Unit,
             val skipPromosChecked: Boolean,

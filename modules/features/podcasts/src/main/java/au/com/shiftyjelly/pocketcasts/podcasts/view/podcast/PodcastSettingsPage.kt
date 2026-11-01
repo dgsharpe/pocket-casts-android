@@ -73,6 +73,7 @@ internal fun PodcastSettingsPage(
     onChangeAutoArchiveLimitSetting: () -> Unit,
     onChangePlaybackEffects: (Boolean) -> Unit,
     onChangeMimiConversion: () -> Unit,
+    onChangeMimiTranscription: () -> Unit,
     onDecrementPlaybackSpeed: () -> Unit,
     onIncrementPlaybackSpeed: () -> Unit,
     onChangeTrimMode: (Boolean) -> Unit,
@@ -159,6 +160,7 @@ internal fun PodcastSettingsPage(
                         navController.navigateOnce(PodcastSettingsRoutes.EFFECTS)
                     },
                     onChangeMimiConversion = onChangeMimiConversion,
+                    onChangeMimiTranscription = onChangeMimiTranscription,
                     onDecrementSkipFirst = onDecrementSkipFirst,
                     onIncrementSkipFirst = onIncrementSkipFirst,
                     onDecrementSkipLast = onDecrementSkipLast,

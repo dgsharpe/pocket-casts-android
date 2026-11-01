@@ -67,7 +67,8 @@ class PodcastSettingsViewModel @AssistedInject constructor(
     @Assisted private val podcastUuid: String,
 ) : ViewModel() {
     private val podcastFlow = MutableStateFlow<Podcast?>(null)
-    private val mimiConversionFlow = MutableStateFlow(mimiHub.conversionFor(podcastUuid))
+    private val mimiCompressionFlow = MutableStateFlow(mimiHub.compressionFor(podcastUuid))
+    private val mimiTranscriptionFlow = MutableStateFlow(mimiHub.transcriptionFor(podcastUuid))
     private val playlistsFlow = MutableStateFlow<List<SmartPlaylistPreview>?>(null)
 
     init {
@@ -92,10 +93,16 @@ class PodcastSettingsViewModel @AssistedInject constructor(
         playlistsFlow,
         settings.autoAddUpNextLimit.flow,
         settings.autoDownloadNewEpisodes.flow.map { it == Podcast.AUTO_DOWNLOAD_NEW_EPISODES },
-        combine(mimiConversionFlow, settings.mimiConvertByDefault.flow) { conversion, byDefault -> conversion to byDefault },
-    ) { podcast, playlists, upNextLimit, isGlobalAutoDownloadEnabled, (mimiConversion, mimiByDefault) ->
+        combine(
+            mimiCompressionFlow,
+            settings.mimiConvertByDefault.flow,
+            mimiTranscriptionFlow,
+            settings.mimiTranscribeByDefault.flow,
+            ::MimiChoices,
+        ),
+    ) { podcast, playlists, upNextLimit, isGlobalAutoDownloadEnabled, mimi ->
         if (podcast != null && playlists != null) {
-            UiState(podcast, playlists, upNextLimit, isGlobalAutoDownloadEnabled, mimiConversion, mimiByDefault)
+            UiState(podcast, playlists, upNextLimit, isGlobalAutoDownloadEnabled, mimi)
         } else {
             null
         }
@@ -149,9 +156,14 @@ class PodcastSettingsViewModel @AssistedInject constructor(
         }
     }
 
-    fun changeMimiConversion(conversion: MimiConversion) {
-        mimiHub.setConversion(podcastUuid, conversion)
-        mimiConversionFlow.value = conversion
+    fun changeMimiCompression(value: MimiConversion) {
+        mimiHub.setCompression(podcastUuid, value)
+        mimiCompressionFlow.value = value
+    }
+
+    fun changeMimiTranscription(value: MimiConversion) {
+        mimiHub.setTranscription(podcastUuid, value)
+        mimiTranscriptionFlow.value = value
     }
 
     fun changeAddToUpNext(mode: Podcast.AutoAddUpNext) {
@@ -449,8 +461,7 @@ class PodcastSettingsViewModel @AssistedInject constructor(
         val playlists: List<SmartPlaylistPreview>,
         val globalUpNextLimit: Int,
         val isGlobalAutoDownloadEnabled: Boolean,
-        val mimiConversion: MimiConversion = MimiConversion.Default,
-        val mimiConvertsByDefault: Boolean = true,
+        val mimi: MimiChoices = MimiChoices(),
     ) {
         val selectedPlaylists = playlists
             .filter { playlist ->
@@ -460,6 +471,14 @@ class PodcastSettingsViewModel @AssistedInject constructor(
                 }
             }
     }
+
+    /** This podcast's the server choices and the global defaults they fall back to. */
+    data class MimiChoices(
+        val compression: MimiConversion = MimiConversion.Default,
+        val compressesByDefault: Boolean = true,
+        val transcription: MimiConversion = MimiConversion.Default,
+        val transcribesByDefault: Boolean = true,
+    )
 
     @AssistedFactory
     interface Factory {

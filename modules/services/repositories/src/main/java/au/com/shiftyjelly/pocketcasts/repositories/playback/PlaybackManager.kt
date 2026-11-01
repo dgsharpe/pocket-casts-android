@@ -474,7 +474,6 @@ open class PlaybackManager @Inject constructor(
                 episode.overrideStreamUrl = override.url
                 episode.overrideStreamContentType = override.contentType
                 if (override.isMimi) {
-                    mimiHub.attachTranscript(episode.uuid)
                     // ~2 MB/hour: download the whole episode too. Once it's done, the episode observer in
                     // loadCurrentEpisode switches playback to the file at the current position.
                     if (settings.mimiDownloadOnStream.value) {

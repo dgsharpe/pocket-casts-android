@@ -66,6 +66,7 @@ internal fun PodcastSettingsHomePage(
     onChangeAutoArchiveSettings: () -> Unit,
     onChangePlaybackEffectsSettings: () -> Unit,
     onChangeMimiConversion: () -> Unit,
+    onChangeMimiTranscription: () -> Unit,
     onDecrementSkipFirst: () -> Unit,
     onIncrementSkipFirst: () -> Unit,
     onDecrementSkipLast: () -> Unit,
@@ -211,12 +212,22 @@ internal fun PodcastSettingsHomePage(
         )
         SettingRow(
             primaryText = stringResource(LR.string.podcast_settings_mimi_conversion),
-            secondaryText = mimiConversionLabel(uiState.mimiConversion, uiState.mimiConvertsByDefault),
+            secondaryText = mimiConversionLabel(uiState.mimi.compression, uiState.mimi.compressesByDefault),
             icon = painterResource(IR.drawable.ic_audio_card),
             iconTint = iconTint,
             modifier = Modifier.clickable(
                 role = Role.Button,
                 onClick = onChangeMimiConversion,
+            ),
+        )
+        SettingRow(
+            primaryText = stringResource(LR.string.podcast_settings_mimi_transcripts),
+            secondaryText = mimiConversionLabel(uiState.mimi.transcription, uiState.mimi.transcribesByDefault),
+            icon = painterResource(IR.drawable.ic_file),
+            iconTint = iconTint,
+            modifier = Modifier.clickable(
+                role = Role.Button,
+                onClick = onChangeMimiTranscription,
             ),
         )
         Row(
@@ -377,6 +388,7 @@ private fun PodcastSettingsHomePagePreview(
             onChangeAutoArchiveSettings = {},
             onChangePlaybackEffectsSettings = {},
             onChangeMimiConversion = {},
+            onChangeMimiTranscription = {},
             onDecrementSkipFirst = {},
             onIncrementSkipFirst = {},
             onDecrementSkipLast = {},

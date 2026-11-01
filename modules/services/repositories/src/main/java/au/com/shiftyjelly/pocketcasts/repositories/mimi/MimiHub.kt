@@ -60,23 +60,50 @@ class MimiHub @Inject constructor(
 
     fun isKnownReady(uuid: String): Boolean = prefs.getBoolean(uuid, false)
 
-    /** [podcastUuid]'s own choice (podcast settings); [MimiConversion.Default] follows the global setting. */
-    fun conversionFor(podcastUuid: String): MimiConversion = podcastPrefs.getString(podcastUuid, null)
+    // Per-podcast choices (podcast settings), each Default / On / Off; Default follows the global setting.
+    // Compression: play the hub's .mimi. Transcripts & ad marks: the hub's VTT and ad / self-promo segments.
+    private fun choice(key: String): MimiConversion = podcastPrefs.getString(key, null)
         ?.let { name -> MimiConversion.entries.firstOrNull { it.name == name } }
         ?: MimiConversion.Default
 
-    fun setConversion(podcastUuid: String, conversion: MimiConversion) {
+    private fun setChoice(key: String, value: MimiConversion) {
         podcastPrefs.edit().apply {
-            if (conversion == MimiConversion.Default) remove(podcastUuid) else putString(podcastUuid, conversion.name)
+            if (value == MimiConversion.Default) remove(key) else putString(key, value.name)
         }.apply()
     }
 
-    /** Whether [episode] goes through the hub: hub configured, and its podcast's choice (or the default) is on. */
-    fun converts(episode: PodcastEpisode): Boolean = isEnabled && when (conversionFor(episode.podcastUuid)) {
+    private fun MimiConversion.resolve(default: Boolean) = when (this) {
         MimiConversion.On -> true
         MimiConversion.Off -> false
-        MimiConversion.Default -> settings.mimiConvertByDefault.value
+        MimiConversion.Default -> default
     }
+
+    fun compressionFor(podcastUuid: String) = choice(podcastUuid)
+
+    fun setCompression(podcastUuid: String, value: MimiConversion) = setChoice(podcastUuid, value)
+
+    fun transcriptionFor(podcastUuid: String) = choice("$podcastUuid:transcripts")
+
+    fun setTranscription(podcastUuid: String, value: MimiConversion) = setChoice("$podcastUuid:transcripts", value)
+
+    fun compressesPodcast(podcastUuid: String): Boolean = isEnabled && compressionFor(podcastUuid).resolve(settings.mimiConvertByDefault.value)
+
+    fun transcribesPodcast(podcastUuid: String): Boolean = isEnabled && transcriptionFor(podcastUuid).resolve(settings.mimiTranscribeByDefault.value)
+
+    fun compresses(episode: PodcastEpisode) = compressesPodcast(episode.podcastUuid)
+
+    fun transcribes(episode: PodcastEpisode) = transcribesPodcast(episode.podcastUuid)
+
+    /** The hub handles [episode] at all. Transcripts without compression: the hub keeps the original it processed
+     * and serves that ([srcUrl]), since a fresh copy from the publisher can carry other (dynamic) ads. */
+    fun usesHub(episode: PodcastEpisode) = compresses(episode) || transcribes(episode)
+
+    fun srcUrl(uuid: String) = "$base/v1/episodes/$uuid.src"
+
+    /** Downloads made from the hub's kept original ([srcUrl]); their timeline is the hub's, like a .mimi's. */
+    fun markHubSource(uuid: String) = prefs.edit().putBoolean("src:$uuid", true).apply()
+
+    fun isHubSource(uuid: String) = prefs.getBoolean("src:$uuid", false)
 
     /** The hub's record for [uuid]; state "missing" if the hub doesn't know it, null if unreachable. */
     fun status(uuid: String): JSONObject? = call(Request.Builder().url("$base/v1/episodes/$uuid").build())
@@ -91,18 +118,20 @@ class MimiHub @Inject constructor(
         null
     }
 
-    private val streamingMimi = ConcurrentHashMap.newKeySet<String>()
+    private val streamingHub = ConcurrentHashMap.newKeySet<String>()
 
-    /** Whether the last stream of [uuid] was the hub's `.mimi` (rather than the original). */
-    fun isStreamingMimi(uuid: String): Boolean = streamingMimi.contains(uuid)
+    /** Whether the last stream of [uuid] came from the hub (its `.mimi` or its kept original). */
+    fun isStreamingHub(uuid: String): Boolean = streamingHub.contains(uuid)
 
-    /** [priority] 0 = about to be streamed (jumps the hub's queue), 1 = download. */
+    /** [priority] 0 = about to be streamed (jumps the hub's queue), 1 = download. The original is kept
+     * (keep_source) when [episode] isn't to be compressed. */
     private fun requestConversion(episode: PodcastEpisode, url: String, priority: Int): JSONObject? {
         val body = JSONObject()
             .put("url", url)
             .put("id", episode.uuid)
             .put("title", episode.title)
             .put("priority", priority)
+            .put("keep_source", !compresses(episode))
             .toString()
             .toRequestBody("application/json".toMediaType())
         return call(Request.Builder().url("$base/v1/convert").post(body).build())
@@ -137,21 +166,33 @@ class MimiHub @Inject constructor(
         val original = episode.downloadUrl?.takeIf { it.isNotBlank() } ?: return episode
         val clean = cleanUrl(original)
         val fallback = if (clean != original) episode.copy(downloadUrl = clean) else episode
-        if (!converts(episode)) return fallback
+        if (!usesHub(episode)) return fallback
+        val compress = compresses(episode)
         var s = status(episode.uuid) ?: return fallback
-        // a user-started download jumps the hub's queue (also bumps a waiting Up Next prefetch)
-        if (s.optString("state") in setOf("missing", "failed", "queued")) {
+        // a user-started download jumps the hub's queue (also bumps a waiting Up Next prefetch); transcripts
+        // without compression need the hub to have kept the original
+        if (s.optString("state") in setOf("missing", "failed", "queued") || (!compress && !s.optBoolean("keep_source"))) {
             s = requestConversion(episode, original, priority = 0) ?: return fallback
         }
+        fun started(s: JSONObject) = if (compress) {
+            s.optString("state") in setOf("encoding", "transcribing", "ready", "failed")
+        } else {
+            s.optBoolean("source_ready") || s.optString("state") == "failed"
+        }
         val deadline = System.currentTimeMillis() + maxWaitMs
-        while (s.optString("state") !in setOf("encoding", "transcribing", "ready", "failed")) {
+        while (!started(s)) {
             if (System.currentTimeMillis() > deadline || isStopped()) return fallback
             Thread.sleep(2_000)
             s = status(episode.uuid) ?: return fallback
         }
+        if (s.optString("state") == "failed") return fallback
+        if (transcribes(episode)) attachTranscriptWhenReady(episode.uuid)
+        if (!compress) {
+            Timber.i("mimi-hub: downloading %s's original from the hub (%d bytes)", episode.uuid, s.optLong("source_bytes"))
+            return episode.copy(downloadUrl = srcUrl(episode.uuid))
+        }
         // EpisodeDownloader rejects podcast files under 150 KB; .mimi is 4.4 kb/s, so < ~4.5 min episodes
-        if (s.optString("state") == "failed" || s.optLong("mimi_bytes") < 160_000) return fallback
-        attachTranscriptWhenReady(episode.uuid)
+        if (s.optLong("mimi_bytes") < 160_000) return fallback
         Timber.i("mimi-hub: downloading %s as .mimi (%d bytes)", episode.uuid, s.optLong("mimi_bytes"))
         return episode.copy(downloadUrl = mimiUrl(episode.uuid), fileType = MIME_TYPE)
     }
@@ -195,12 +236,12 @@ class MimiHub @Inject constructor(
      * per app session. Blocking network calls; call from Dispatchers.IO.
      */
     suspend fun prefetch(episode: PodcastEpisode) {
-        if (!converts(episode) || isKnownReady(episode.uuid)) return
+        if (!usesHub(episode) || isKnownReady(episode.uuid)) return
         val url = episode.downloadUrl?.takeIf { it.isNotBlank() } ?: return
         when (status(episode.uuid)?.optString("state")) {
             "ready" -> {
                 markReady(episode.uuid)
-                attachTranscript(episode.uuid)
+                if (transcribes(episode)) attachTranscript(episode.uuid)
             }
 
             "missing" -> {
@@ -230,23 +271,29 @@ class MimiHub @Inject constructor(
     suspend fun streamOverride(episode: BaseEpisode): StreamOverride? = withContext(Dispatchers.IO) {
         if (episode !is PodcastEpisode) return@withContext null
         val original = episode.downloadUrl?.takeIf { it.isNotBlank() } ?: return@withContext null
-        if (converts(episode)) {
-            var state = status(episode.uuid)?.optString("state")
-            if (state == "missing" || state == "failed" || state == "queued") { // queued: bump a prefetch
-                state = requestConversion(episode, original, priority = 0)?.optString("state")
+        if (usesHub(episode)) {
+            val compress = compresses(episode)
+            var s = status(episode.uuid)
+            if (s?.optString("state") in setOf("missing", "failed", "queued") || (!compress && s?.optBoolean("keep_source") == false)) {
+                s = requestConversion(episode, original, priority = 0) // queued: bump a prefetch
             }
+            fun ready(s: JSONObject?) = if (compress) s?.optString("state") in STREAMABLE else s?.optBoolean("source_ready") == true
             var waits = 0
-            while (state in STARTING && waits++ < 20) {
+            while (s != null && !ready(s) && s.optString("state") != "failed" && waits++ < 20) {
                 delay(500)
-                state = status(episode.uuid)?.optString("state")
+                s = status(episode.uuid)
             }
-            if (state in STREAMABLE) {
-                attachTranscriptWhenReady(episode.uuid)
-                streamingMimi.add(episode.uuid)
-                return@withContext StreamOverride(mimiUrl(episode.uuid), MIME_TYPE, isMimi = true)
+            if (ready(s)) {
+                if (transcribes(episode)) attachTranscriptWhenReady(episode.uuid)
+                streamingHub.add(episode.uuid)
+                return@withContext if (compress) {
+                    StreamOverride(mimiUrl(episode.uuid), MIME_TYPE, isMimi = true)
+                } else {
+                    StreamOverride(srcUrl(episode.uuid), s?.optString("source_type")?.takeIf { it.isNotEmpty() }, isMimi = false)
+                }
             }
         }
-        streamingMimi.remove(episode.uuid)
+        streamingHub.remove(episode.uuid)
         cleanUrl(original).takeIf { it != original }?.let { StreamOverride(it, null, isMimi = false) }
     }
 
@@ -254,8 +301,10 @@ class MimiHub @Inject constructor(
         prefs.edit().putBoolean(uuid, true).apply()
     }
 
-    /** The hub transcript row for [uuid], if the hub is known to have it. */
-    fun transcriptFor(uuid: String): Transcript? = if (isEnabled && isKnownReady(uuid)) {
+    /** The hub transcript row for [uuid], if the hub is known to have it (and [podcastUuid], if given, wants it). */
+    fun transcriptFor(uuid: String, podcastUuid: String? = null): Transcript? = if (
+        isEnabled && isKnownReady(uuid) && (podcastUuid == null || transcribesPodcast(podcastUuid))
+    ) {
         Transcript(episodeUuid = uuid, url = vttUrl(uuid), type = "text/vtt", isGenerated = false)
     } else {
         null

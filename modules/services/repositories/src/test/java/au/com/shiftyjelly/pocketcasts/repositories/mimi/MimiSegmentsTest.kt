@@ -11,6 +11,7 @@ import org.junit.Assert.assertNull
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.mockito.kotlin.any
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.whenever
 import org.robolectric.RobolectricTestRunner
@@ -40,6 +41,7 @@ class MimiSegmentsTest {
                 {"start": 600.0, "end": 700.0, "kind": "ad", "label": "mid-roll"},
                 {"start": 1000.0, "end": 1012.0, "kind": "promo", "label": "membership"}]}""",
         )
+        whenever(mimiHub.transcribes(any())).thenReturn(true)
         whenever(settings.mimiSkipAds).thenReturn(UserSetting.Mock(true, mock()))
         whenever(settings.mimiSkipPromos).thenReturn(UserSetting.Mock(false, mock()))
         segments = MimiSegments(context, settings, mimiHub)
