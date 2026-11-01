@@ -109,6 +109,17 @@ class MimiSegments @Inject constructor(
         return MimiTimeline(segments, cuts)
     }
 
+    /**
+     * Segments to fold in [uuid]'s mimi-hub transcript: the kinds being skipped, when "Trim skipped segments" is on.
+     * Hub transcripts are on the `.mimi` timeline, so this doesn't depend on what is playing.
+     */
+    fun transcriptCuts(uuid: String): List<Segment> {
+        if (!settings.mimiTrimTimeline.value) return emptyList()
+        val skipAds = settings.mimiSkipAds.value
+        val skipPromos = settings.mimiSkipPromos.value
+        return get(uuid).orEmpty().filter { if (it.isAd) skipAds else skipPromos }
+    }
+
     private fun isPlayingMimi(episode: BaseEpisode): Boolean = if (episode.isDownloaded) {
         episode.downloadedFilePath?.endsWith(".mimi") == true
     } else {

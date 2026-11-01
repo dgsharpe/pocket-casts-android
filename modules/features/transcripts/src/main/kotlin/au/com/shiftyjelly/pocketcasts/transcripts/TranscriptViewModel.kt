@@ -18,6 +18,8 @@ import au.com.shiftyjelly.pocketcasts.repositories.chat.ChatManager
 import au.com.shiftyjelly.pocketcasts.repositories.fingerprint.ChapterSeekResult
 import au.com.shiftyjelly.pocketcasts.repositories.fingerprint.FingerprintTimingManager
 import au.com.shiftyjelly.pocketcasts.repositories.mimi.MimiHub
+import au.com.shiftyjelly.pocketcasts.repositories.mimi.MimiSegments
+import au.com.shiftyjelly.pocketcasts.repositories.mimi.foldMimiSegments
 import au.com.shiftyjelly.pocketcasts.repositories.playback.PlaybackManager
 import au.com.shiftyjelly.pocketcasts.repositories.podcast.EpisodeManager
 import au.com.shiftyjelly.pocketcasts.repositories.transcript.BookmarkTranscript
@@ -29,6 +31,7 @@ import au.com.shiftyjelly.pocketcasts.utils.featureflag.FeatureFlag
 import au.com.shiftyjelly.pocketcasts.utils.search.SearchCoordinates
 import au.com.shiftyjelly.pocketcasts.utils.search.SearchMatches
 import au.com.shiftyjelly.pocketcasts.utils.search.kmpSearch
+import au.com.shiftyjelly.pocketcasts.utils.toHhMmSs
 import com.automattic.eventhorizon.BookmarkSourceType
 import com.automattic.eventhorizon.EventHorizon
 import com.automattic.eventhorizon.SyncedTranscriptsAutoScrollResumedEvent
@@ -80,6 +83,7 @@ class TranscriptViewModel @AssistedInject constructor(
     private val chatManager: ChatManager,
     val fingerprintTimingManager: FingerprintTimingManager,
     val playbackManager: PlaybackManager,
+    private val mimiSegments: MimiSegments,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(UiState.Empty)
@@ -133,7 +137,7 @@ class TranscriptViewModel @AssistedInject constructor(
             updateEpisodeMetadata(episodeUuid)
             val transcriptState = when (val transcript = transcriptManager.loadTranscript(episodeUuid)) {
                 is Transcript.Text -> if (transcript.entries.isNotEmpty()) {
-                    TranscriptState.Loaded(transcript)
+                    TranscriptState.Loaded(foldSkippedSegments(transcript))
                 } else {
                     track { source, podcastUuid, episodeUuid ->
                         TranscriptErrorEvent(
@@ -172,6 +176,22 @@ class TranscriptViewModel @AssistedInject constructor(
                 trackTranscriptShown(transcriptState.transcript, episodeUuid)
             }
         }
+    }
+
+    /**
+     * A mimi-hub transcript with each segment cut from the timeline (Settings > Advanced > Mimi > Trim skipped
+     * segments) folded to one line, e.g. "⏭ Ad break (1:37): Indeed, Gatorade". Tapping that line plays the segment.
+     */
+    private fun foldSkippedSegments(transcript: Transcript.Text): Transcript.Text {
+        if (!MimiHub.isHubTranscriptUrl(transcript.url)) return transcript
+        val cuts = mimiSegments.transcriptCuts(transcript.episodeUuid)
+        if (cuts.isEmpty()) return transcript
+        val entries = transcript.entries.foldMimiSegments(cuts) { segment ->
+            val kind = context.getString(if (segment.isAd) LR.string.transcript_mimi_ad_break else LR.string.transcript_mimi_self_promotion)
+            val length = (segment.endMs - segment.startMs).milliseconds.toHhMmSs()
+            listOfNotNull("⏭ $kind ($length)", segment.label.takeIf { it.isNotBlank() }).joinToString(": ")
+        }
+        return transcript.copy(entries = entries)
     }
 
     private var syncedStateJob: Job? = null

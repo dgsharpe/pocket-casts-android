@@ -119,6 +119,7 @@ class TranscriptViewModelTest {
             }
         },
         bookmarkManager = bookmarkManager,
+        mimiSegments = mock(),
         chatManager = chatManager,
         fingerprintTimingManager = fingerprintTimingManager,
         playbackManager = playbackManager,
