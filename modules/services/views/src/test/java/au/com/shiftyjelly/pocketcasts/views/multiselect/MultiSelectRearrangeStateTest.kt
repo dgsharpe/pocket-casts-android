@@ -34,7 +34,7 @@ class MultiSelectRearrangeStateTest {
 
         assertEquals(MultiSelectRearrangeTitle(LR.string.multiselect_actions_shown), items[0])
         assertEquals(MultiSelectRearrangeTitle(LR.string.multiselect_actions_hidden), items[5])
-        assertEquals(10, items.size)
+        assertEquals(11, items.size)
     }
 
     @Test
@@ -51,7 +51,7 @@ class MultiSelectRearrangeStateTest {
         state.onItemMove(fromPosition = 1, toPosition = 2)
         state.onItemTouchFinished(2)
 
-        verify(settings).setMultiSelectItems(listOf("archive", "download", "mark_as_played", "play_next", "add_to_playlist", "play_last", "star", "share"))
+        verify(settings).setMultiSelectItems(listOf("archive", "download", "mark_as_played", "play_next", "add_to_playlist", "play_last", "star", "share", "mimi_server"))
         assertEquals(
             MultiSelectViewOverflowMenuRearrangeActionMovedEvent(
                 source = SourceView.PODCAST_SCREEN.analyticsValue,
@@ -73,7 +73,7 @@ class MultiSelectRearrangeStateTest {
         state.onItemMove(fromPosition = 1, toPosition = 6)
         state.onItemTouchFinished(5)
 
-        verify(settings).setMultiSelectItems(listOf("archive", "mark_as_played", "play_next", "add_to_playlist", "download", "play_last", "star", "share"))
+        verify(settings).setMultiSelectItems(listOf("archive", "mark_as_played", "play_next", "add_to_playlist", "download", "play_last", "star", "share", "mimi_server"))
         assertEquals(
             MultiSelectViewOverflowMenuRearrangeActionMovedEvent(
                 source = SourceView.PODCAST_SCREEN.analyticsValue,
@@ -119,7 +119,7 @@ class MultiSelectRearrangeStateTest {
         state.onItemMove(fromPosition = 2, toPosition = 1)
         state.onItemTouchFinished(1)
 
-        verify(settings).setMultiSelectItems(listOf("archive", "download", "mark_as_played", "play_next", "add_to_playlist", "play_last", "star", "share"))
+        verify(settings).setMultiSelectItems(listOf("archive", "download", "mark_as_played", "play_next", "add_to_playlist", "play_last", "star", "share", "mimi_server"))
         assertTrue(sink.isEmpty())
     }
 

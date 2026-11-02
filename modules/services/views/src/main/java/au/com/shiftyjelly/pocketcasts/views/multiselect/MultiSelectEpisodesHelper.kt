@@ -16,6 +16,7 @@ import au.com.shiftyjelly.pocketcasts.models.entity.UserEpisode
 import au.com.shiftyjelly.pocketcasts.preferences.Settings
 import au.com.shiftyjelly.pocketcasts.repositories.download.DownloadQueue
 import au.com.shiftyjelly.pocketcasts.repositories.download.DownloadType
+import au.com.shiftyjelly.pocketcasts.repositories.mimi.MimiHub
 import au.com.shiftyjelly.pocketcasts.repositories.playback.PlaybackManager
 import au.com.shiftyjelly.pocketcasts.repositories.playlist.PlaylistManager
 import au.com.shiftyjelly.pocketcasts.repositories.podcast.EpisodeManager
@@ -65,6 +66,7 @@ class MultiSelectEpisodesHelper @Inject constructor(
     private val crashLogging: CrashLogging,
     private val shareDialogFactory: ShareDialogFactory,
     private val addToPlaylistFragmentFactory: AddToPlaylistFragmentFactory,
+    private val mimiHub: MimiHub,
 ) : MultiSelectHelper<BaseEpisode>() {
     override val maxToolbarIcons = 4
 
@@ -76,7 +78,7 @@ class MultiSelectEpisodesHelper @Inject constructor(
             crashLogging.recordEvent("MultiSelectEpisodesHelper toolbarActions updated (${actions.size}): ${actions.map { it::class.java.simpleName }}, ${selectedEpisodes.size} selectedEpisodes from $source")
             actions.mapNotNull {
                 MultiSelectEpisodeAction.actionForGroup(it.groupId, selectedEpisodes)
-            }
+            }.filter { it != MultiSelectEpisodeAction.SendToMimiServer || mimiHub.isEnabled }
         }
 
     override fun isSelected(multiSelectable: BaseEpisode) = selectedSet.any { it.uuid == multiSelectable.uuid }
@@ -161,6 +163,11 @@ class MultiSelectEpisodesHelper @Inject constructor(
 
             R.id.menu_star -> {
                 star(resources = resources)
+                true
+            }
+
+            R.id.menu_send_to_mimi_server -> {
+                sendToMimiServer(resources = resources)
                 true
             }
 
@@ -319,6 +326,33 @@ class MultiSelectEpisodesHelper @Inject constructor(
                 showSnackBar(snackText)
                 closeMultiSelect()
             }
+        }
+    }
+
+    private fun sendToMimiServer(resources: Resources) {
+        val list = selectedSet.filterIsInstance<PodcastEpisode>().toList()
+        closeMultiSelect()
+        if (list.isEmpty()) return
+        showSnackBar(resources.getString(LR.string.mimi_sending_to_server, list.size))
+        applicationScope.launch(Dispatchers.IO) {
+            val counts = mutableMapOf<MimiHub.SendResult, Int>()
+            for (episode in list) {
+                val result = mimiHub.sendToServer(episode)
+                counts[result] = (counts[result] ?: 0) + 1
+                if (result == MimiHub.SendResult.Unreachable) break // don't wait out a timeout per episode
+            }
+            val text = if (counts.containsKey(MimiHub.SendResult.Unreachable)) {
+                resources.getString(LR.string.mimi_send_to_server_unreachable)
+            } else {
+                val sent = resources.getString(
+                    LR.string.mimi_sent_to_server,
+                    counts[MimiHub.SendResult.Queued] ?: 0,
+                    counts[MimiHub.SendResult.Processed] ?: 0,
+                )
+                val notUsing = counts[MimiHub.SendResult.NotUsingHub] ?: 0
+                if (notUsing > 0) resources.getString(LR.string.mimi_sent_to_server_not_using, sent, notUsing) else sent
+            }
+            withContext(Dispatchers.Main) { showSnackBar(text) }
         }
     }
 

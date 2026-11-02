@@ -51,6 +51,7 @@ class MultiSelectControllerTest {
         crashLogging = mock(),
         shareDialogFactory = mock(),
         addToPlaylistFragmentFactory = mock(),
+        mimiHub = mock(),
     )
 
     private val bookmarksHelper = MultiSelectBookmarksHelper(
