@@ -9,8 +9,10 @@ import au.com.shiftyjelly.pocketcasts.servers.shownotes.ShowNotesState
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.map
 import au.com.shiftyjelly.pocketcasts.repositories.mimi.MimiHub
 import kotlinx.coroutines.launch
 import okhttp3.CacheControl
@@ -38,8 +40,8 @@ class ShowNotesManager @Inject constructor(
                 )
             }
         },
-    ).map { state ->
-        enhanceWithSummary(episodeUuid, state)
+    ).combine(mimiHub.summaryArrived.filter { it == episodeUuid }.onStart { emit(episodeUuid) }) { state, _ ->
+        enhanceWithSummary(episodeUuid, state) // again when the summary arrives
     }
 
     suspend fun downloadToCacheShowNotes(podcastUuid: String, episodeUuid: String) {

@@ -16,6 +16,9 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -341,18 +344,44 @@ fun summaryUrl(uuid: String) = "$base/v1/episodes/$uuid.summary.json"
 
     private val summaryDir by lazy { File(context.filesDir, "mimi_summaries").apply { mkdirs() } }
     private val summaryCache = ConcurrentHashMap<String, String>()
+    private val summaryArrivedFlow = MutableSharedFlow<String>(extraBufferCapacity = 16)
+    private val noSummaryAnswers = ConcurrentHashMap<String, Int>()
+
+    /** UUIDs of episodes whose summary was just fetched from the hub, so screens showing them can reload. */
+    val summaryArrived: SharedFlow<String> = summaryArrivedFlow.asSharedFlow()
 
     fun getSummary(uuid: String): String? {
         if (!isSummariesEnabled) return null
-        summaryCache[uuid]?.let { return it }
-        val file = File(summaryDir, "$uuid.html")
-        if (file.exists()) {
-            val text = file.readText()
-            summaryCache[uuid] = text
-            return text
-        }
+        cachedSummary(uuid)?.let { return it }
         fetchSummaryAsync(uuid)
         return null
+    }
+
+    /** The summary if it's on the phone already; never asks the hub. */
+    private fun cachedSummary(uuid: String): String? {
+        summaryCache[uuid]?.let { return it }
+        val file = File(summaryDir, "$uuid.html")
+        if (!file.exists()) return null
+        return file.readText().also { summaryCache[uuid] = it }
+    }
+
+    /**
+     * For an episode that's playing with its ad marks known ([MimiSegments.onPlaying]): fetches the summary once
+     * the hub has made it. The hub writes it right after the ad marks and says "pending" meanwhile. An episode it
+     * won't summarise (failed, summaries off, or processed before they existed) is dropped: at once for "failed",
+     * after two answers with no summary state otherwise (the hub sets "pending" just after saving the ad marks).
+     */
+    suspend fun checkSummary(uuid: String) {
+        withContext(Dispatchers.IO) {
+            if (!isSummariesEnabled || (noSummaryAnswers[uuid] ?: 0) >= 2 || cachedSummary(uuid) != null) return@withContext
+            val s = status(uuid) ?: return@withContext // hub unreachable: the next check tries again
+            when (s.optString("summary_state")) {
+                "ready" -> fetchSummaryDirect(uuid)
+                "pending" -> Unit
+                "failed" -> noSummaryAnswers[uuid] = 2
+                else -> noSummaryAnswers.merge(uuid, 1, Int::plus)
+            }
+        }
     }
 
     fun fetchSummaryAsync(uuid: String) {
@@ -375,6 +404,7 @@ fun summaryUrl(uuid: String) = "$base/v1/episodes/$uuid.summary.json"
                     summaryDir.mkdirs()
                     File(summaryDir, "$uuid.html").writeText(summary)
                     summaryCache[uuid] = summary
+                    summaryArrivedFlow.tryEmit(uuid)
                     return@withContext summary
                 }
             }

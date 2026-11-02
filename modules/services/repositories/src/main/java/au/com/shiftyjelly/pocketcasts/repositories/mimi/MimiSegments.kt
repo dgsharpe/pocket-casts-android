@@ -34,6 +34,7 @@ class MimiSegments @Inject constructor(
     private val dir = File(context.filesDir, "mimi_segments")
     private val cache = ConcurrentHashMap<String, List<Segment>>()
     private val lastAttempt = ConcurrentHashMap<String, Long>()
+    private val summaryChecked = ConcurrentHashMap<String, Long>()
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     private var lastUuid: String? = null
@@ -51,6 +52,22 @@ class MimiSegments @Inject constructor(
         }
         fetchAsync(uuid)
         return null
+    }
+
+    /**
+     * Called about once a second while [uuid] plays. Once its ad marks are here (the hub summarises right after
+     * finding them), asks the hub about its summary at most every [SUMMARY_CHECK_MS] until it's fetched or the hub
+     * says none is coming ([MimiHub.checkSummary]). Before then it costs nothing: no requests.
+     */
+    fun onPlaying(uuid: String) {
+        if (!mimiHub.isSummariesEnabled) return
+        val now = System.currentTimeMillis()
+        val previous = summaryChecked[uuid]
+        if (previous != null && now - previous < SUMMARY_CHECK_MS) return
+        summaryChecked[uuid] = now
+        scope.launch {
+            if (cache.containsKey(uuid) || File(dir, "$uuid.json").exists()) mimiHub.checkSummary(uuid)
+        }
     }
 
     private fun fetchAsync(uuid: String) {
@@ -164,6 +181,7 @@ class MimiSegments @Inject constructor(
 
     private companion object {
         const val RETRY_MS = 15_000L // the hub has them ~15 s after the transcript text; one tiny request
+        const val SUMMARY_CHECK_MS = 30_000L // the summary follows the ad marks by a few minutes
         const val FRESH_START_MS = 3_000L
         const val MAX_TICK_MS = 6_000L // 1 s ticks at up to 5x speed
         const val MIN_LEFT_MS = 1_000L
