@@ -83,9 +83,9 @@ class MimiSegmentsTest {
     @Test
     fun `respects per-podcast ad skip override`() {
         whenever(mimiHub.skipsAds(any())).thenReturn(false)
-        assertNull(segments.toSkip(episode, 600_200))
+        assertEquals(listOf(null, null, null), play(598_000, 599_000, 600_200))
 
         whenever(mimiHub.skipsAds(any())).thenReturn(true)
-        assertEquals("mid-roll", segments.toSkip(episode, 600_200)?.label)
+        assertEquals(listOf(null, null, "mid-roll"), play(598_000, 599_000, 600_200))
     }
 }
