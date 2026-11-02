@@ -386,11 +386,11 @@ fun summaryUrl(uuid: String) = "$base/v1/episodes/$uuid.summary.json"
 
     fun formatSummaryCard(summaryHtml: String): String {
         return """
-            <div style="background-color: rgba(128,128,128,0.12); border-left: 4px solid #f43f5e; padding: 14px; margin-bottom: 20px; border-radius: 8px;">
+            <hr style="opacity: 0.2; margin-top: 20px;" />
+            <div style="background-color: rgba(128,128,128,0.12); border-left: 4px solid #f43f5e; padding: 14px; margin-top: 20px; border-radius: 8px;">
                 <h3 style="margin-top: 0; margin-bottom: 10px; color: #f43f5e;">✨ Episode Summary & Highlights</h3>
                 $summaryHtml
             </div>
-            <hr style="opacity: 0.2; margin-bottom: 20px;" />
         """.trimIndent()
     }
 

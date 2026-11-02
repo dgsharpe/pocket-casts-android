@@ -83,6 +83,6 @@ class ShowNotesManager @Inject constructor(
         val summary = mimiHub.getSummary(episodeUuid) ?: return state
         val marker = "<!-- mimi-summary -->"
         if (state.showNotes.contains(marker)) return state
-        return ShowNotesState.Loaded(marker + mimiHub.formatSummaryCard(summary) + state.showNotes)
+        return ShowNotesState.Loaded(state.showNotes + marker + mimiHub.formatSummaryCard(summary))
     }
 }
