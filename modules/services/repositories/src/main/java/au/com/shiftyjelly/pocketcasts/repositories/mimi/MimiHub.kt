@@ -94,6 +94,14 @@ class MimiHub @Inject constructor(
 
     fun transcribes(episode: PodcastEpisode) = transcribesPodcast(episode.podcastUuid)
 
+    fun skipAdsFor(podcastUuid: String) = choice("$podcastUuid:skip_ads")
+
+    fun setSkipAds(podcastUuid: String, value: MimiConversion) = setChoice("$podcastUuid:skip_ads", value)
+
+    fun skipsAdsPodcast(podcastUuid: String): Boolean = isEnabled && skipAdsFor(podcastUuid).resolve(settings.mimiSkipAds.value)
+
+    fun skipsAds(episode: PodcastEpisode) = skipsAdsPodcast(episode.podcastUuid)
+
     /** The hub handles [episode] at all. Transcripts without compression: the hub keeps the original it processed
      * and serves that ([srcUrl]), since a fresh copy from the publisher can carry other (dynamic) ads. */
     fun usesHub(episode: PodcastEpisode) = compresses(episode) || transcribes(episode)

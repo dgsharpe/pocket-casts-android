@@ -2035,6 +2035,7 @@
     <string name="settings_advanced_mimi_transcribe_summary" translatable="false">The Mimi server\'s transcripts with speakers, and its ad and self-promotion marks. Without compression, the episode\'s original audio comes from the Mimi server so the timings match. Default for every podcast.</string>
     <string name="podcast_settings_mimi_conversion" translatable="false">Compress with Mimi</string>
     <string name="podcast_settings_mimi_transcripts" translatable="false">Transcripts and ad marks</string>
+    <string name="podcast_settings_mimi_skip_ads" translatable="false">Skip ads</string>
     <string name="podcast_settings_mimi_conversion_default_on" translatable="false">Default (on)</string>
     <string name="podcast_settings_mimi_conversion_default_off" translatable="false">Default (off)</string>
     <string name="podcast_settings_mimi_conversion_on" translatable="false">On</string>
