@@ -84,11 +84,6 @@ class AdvancedSettingsViewModel @Inject constructor(
             settings.mimiTranscribeByDefault.set(it, updateModifiedAt = false)
             updateMimiState()
         },
-        prefetchOnlyOnWifiChecked = settings.mimiPrefetchOnlyOnWifi.value,
-        onPrefetchOnlyOnWifiChange = {
-            settings.mimiPrefetchOnlyOnWifi.set(it, updateModifiedAt = false)
-            updateMimiState()
-        },
         skipAdsChecked = settings.mimiSkipAds.value,
         onSkipAdsChange = {
             settings.mimiSkipAds.set(it, updateModifiedAt = false)
@@ -107,6 +102,11 @@ class AdvancedSettingsViewModel @Inject constructor(
         downloadOnStreamChecked = settings.mimiDownloadOnStream.value,
         onDownloadOnStreamChange = {
             settings.mimiDownloadOnStream.set(it, updateModifiedAt = false)
+            updateMimiState()
+        },
+        prefetchOnlyOnWifiChecked = settings.mimiPrefetchOnlyOnWifi.value,
+        onPrefetchOnlyOnWifiChange = {
+            settings.mimiPrefetchOnlyOnWifi.set(it, updateModifiedAt = false)
             updateMimiState()
         },
         hubUrl = settings.mimiHubUrl.value,
@@ -170,8 +170,6 @@ class AdvancedSettingsViewModel @Inject constructor(
             val onConvertByDefaultChange: (Boolean) -> Unit,
             val transcribeByDefaultChecked: Boolean,
             val onTranscribeByDefaultChange: (Boolean) -> Unit,
-            val prefetchOnlyOnWifiChecked: Boolean,
-            val onPrefetchOnlyOnWifiChange: (Boolean) -> Unit,
             val skipAdsChecked: Boolean,
             val onSkipAdsChange: (Boolean) -> Unit,
             val skipPromosChecked: Boolean,
@@ -180,6 +178,8 @@ class AdvancedSettingsViewModel @Inject constructor(
             val onTrimTimelineChange: (Boolean) -> Unit,
             val downloadOnStreamChecked: Boolean,
             val onDownloadOnStreamChange: (Boolean) -> Unit,
+            val prefetchOnlyOnWifiChecked: Boolean,
+            val onPrefetchOnlyOnWifiChange: (Boolean) -> Unit,
             val hubUrl: String,
             val onHubUrlChange: (String) -> Unit,
         )

@@ -336,9 +336,6 @@ interface Settings {
     /** Use mimi-hub's transcripts and ad marks unless a podcast's own setting says otherwise (podcast settings). */
     val mimiTranscribeByDefault: UserSetting<Boolean>
 
-    /** Only prefetch Up Next episodes on mimi-hub while connected to an unmetered Wi-Fi connection. */
-    val mimiPrefetchOnlyOnWifi: UserSetting<Boolean>
-
     /** Skip ad breaks mimi-hub found in the transcript (only while playing its `.mimi`). */
     val mimiSkipAds: UserSetting<Boolean>
 
@@ -350,6 +347,9 @@ interface Settings {
 
     /** Leave skipped mimi-hub segments out of the seek bar's timeline (scrubbing and skip buttons step over them). */
     val mimiTrimTimeline: UserSetting<Boolean>
+
+    /** Only prefetch Up Next episodes on mimi-hub while connected to an unmetered Wi-Fi connection. */
+    val mimiPrefetchOnlyOnWifi: UserSetting<Boolean>
     val collectListeningStats: ReadWriteSetting<Boolean>
 
     fun setSelectPodcastsSortType(sortType: PodcastsSortType)

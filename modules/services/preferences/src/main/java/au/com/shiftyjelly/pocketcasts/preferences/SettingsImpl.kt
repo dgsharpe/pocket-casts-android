@@ -216,12 +216,6 @@ class SettingsImpl @Inject constructor(
         sharedPrefs = sharedPreferences,
     )
 
-    override val mimiPrefetchOnlyOnWifi = UserSetting.BoolPref(
-        sharedPrefKey = "mimiPrefetchOnlyOnWifi",
-        defaultValue = true,
-        sharedPrefs = sharedPreferences,
-    )
-
     override val mimiSkipAds = UserSetting.BoolPref(
         sharedPrefKey = "mimiSkipAds",
         defaultValue = true,
@@ -255,6 +249,12 @@ class SettingsImpl @Inject constructor(
     override val mimiTrimTimeline = UserSetting.BoolPref(
         sharedPrefKey = "mimiTrimTimeline",
         defaultValue = false,
+        sharedPrefs = sharedPreferences,
+    )
+
+    override val mimiPrefetchOnlyOnWifi = UserSetting.BoolPref(
+        sharedPrefKey = "mimiPrefetchOnlyOnWifi",
+        defaultValue = true,
         sharedPrefs = sharedPreferences,
     )
 

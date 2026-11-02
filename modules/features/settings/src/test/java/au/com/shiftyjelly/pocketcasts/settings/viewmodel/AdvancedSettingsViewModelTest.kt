@@ -39,13 +39,13 @@ class AdvancedSettingsViewModelTest {
         whenever(settings.prioritizeSeekAccuracy).thenReturn(UserSetting.Mock(false, mock()))
         whenever(settings.cacheEntirePlayingEpisode).thenReturn(UserSetting.Mock(false, mock()))
         whenever(settings.stripTrackingRedirects).thenReturn(UserSetting.Mock(true, mock()))
-        whenever(settings.mimiPrefetchOnlyOnWifi).thenReturn(UserSetting.Mock(true, mock()))
         whenever(settings.mimiSkipAds).thenReturn(UserSetting.Mock(true, mock()))
         whenever(settings.mimiConvertByDefault).thenReturn(UserSetting.Mock(true, mock()))
         whenever(settings.mimiTranscribeByDefault).thenReturn(UserSetting.Mock(true, mock()))
         whenever(settings.mimiSkipPromos).thenReturn(UserSetting.Mock(true, mock()))
         whenever(settings.mimiDownloadOnStream).thenReturn(UserSetting.Mock(true, mock()))
         whenever(settings.mimiTrimTimeline).thenReturn(UserSetting.Mock(false, mock()))
+        whenever(settings.mimiPrefetchOnlyOnWifi).thenReturn(UserSetting.Mock(true, mock()))
         whenever(settings.mimiHubUrl).thenReturn(UserSetting.Mock("", mock()))
         viewModel = AdvancedSettingsViewModel(
             settings = settings,

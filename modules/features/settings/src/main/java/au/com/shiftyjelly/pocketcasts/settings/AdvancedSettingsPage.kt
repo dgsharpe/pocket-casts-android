@@ -128,12 +128,6 @@ fun AdvancedSettingsView(
                     )
                     StripTrackingRow(state.mimiState)
                     MimiSwitchRow(
-                        primaryText = stringResource(LR.string.settings_advanced_mimi_prefetch_wifi_only),
-                        secondaryText = stringResource(LR.string.settings_advanced_mimi_prefetch_wifi_only_summary),
-                        isChecked = state.mimiState.prefetchOnlyOnWifiChecked,
-                        onCheckedChange = state.mimiState.onPrefetchOnlyOnWifiChange,
-                    )
-                    MimiSwitchRow(
                         primaryText = stringResource(LR.string.settings_advanced_mimi_skip_ads),
                         secondaryText = stringResource(LR.string.settings_advanced_mimi_skip_ads_summary),
                         isChecked = state.mimiState.skipAdsChecked,
@@ -156,6 +150,12 @@ fun AdvancedSettingsView(
                         secondaryText = stringResource(LR.string.settings_advanced_mimi_download_on_stream_summary),
                         isChecked = state.mimiState.downloadOnStreamChecked,
                         onCheckedChange = state.mimiState.onDownloadOnStreamChange,
+                    )
+                    MimiSwitchRow(
+                        primaryText = stringResource(LR.string.settings_advanced_mimi_prefetch_wifi_only),
+                        secondaryText = stringResource(LR.string.settings_advanced_mimi_prefetch_wifi_only_summary),
+                        isChecked = state.mimiState.prefetchOnlyOnWifiChecked,
+                        onCheckedChange = state.mimiState.onPrefetchOnlyOnWifiChange,
                     )
                     MimiHubUrlRow(state.mimiState)
                 }
@@ -314,8 +314,6 @@ private fun AdvancedSettingsPreview(
                     onConvertByDefaultChange = {},
                     transcribeByDefaultChecked = true,
                     onTranscribeByDefaultChange = {},
-                    prefetchOnlyOnWifiChecked = true,
-                    onPrefetchOnlyOnWifiChange = {},
                     skipAdsChecked = true,
                     onSkipAdsChange = {},
                     skipPromosChecked = true,
@@ -324,6 +322,8 @@ private fun AdvancedSettingsPreview(
                     onTrimTimelineChange = {},
                     downloadOnStreamChecked = true,
                     onDownloadOnStreamChange = {},
+                    prefetchOnlyOnWifiChecked = true,
+                    onPrefetchOnlyOnWifiChange = {},
                     hubUrl = "http://your-hub:8765",
                     onHubUrlChange = {},
                 ),
