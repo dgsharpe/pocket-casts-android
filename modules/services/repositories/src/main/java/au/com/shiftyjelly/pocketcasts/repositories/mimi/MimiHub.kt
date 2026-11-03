@@ -421,6 +421,7 @@ class MimiHub @Inject constructor(
     private val noSummaryAnswers = ConcurrentHashMap<String, Int>()
     private val pendingAnswers = ConcurrentHashMap<String, Int>()
     private val missingSummaries = ConcurrentHashMap.newKeySet<String>()
+    private val summaryRetries = ConcurrentHashMap<String, Int>()
     private val serverFeatures = ConcurrentHashMap<String, Boolean>() // server URL -> it makes summaries
 
     /** UUIDs of episodes whose summary was just fetched from the hub, so screens showing them can reload. */
@@ -488,7 +489,7 @@ class MimiHub @Inject constructor(
         try {
             val req = Request.Builder().url(summaryUrl(uuid)).build()
             client.newCall(req).execute().use { res ->
-                if (res.code == 404 && rememberMissing) missingSummaries.add(uuid)
+                if (res.code == 404 && rememberMissing) summaryNotThereYet(uuid)
                 if (!res.isSuccessful) return@withContext null
                 val summary = sanitizeSummary(JSONObject(res.body.string()).optString("summary", ""))
                 if (summary.isNotBlank()) {
@@ -505,6 +506,30 @@ class MimiHub @Inject constructor(
         null
     }
 
+    /**
+     * A 404 for [uuid]'s summary: if the hub is still converting the episode or making its summary (asked for as it
+     * was queued or downloaded, a summary follows its ad marks by a minute or two), looked for again every
+     * [SUMMARY_RETRY_MS], [MAX_SUMMARY_RETRIES] times at most ([summaryArrived] then updates the show notes); if it
+     * says none is coming, not asked for again this session.
+     */
+    private fun summaryNotThereYet(uuid: String) {
+        val s = status(uuid)
+        val coming = s != null && (
+            s.optString("state") !in setOf("ready", "failed", "missing") ||
+                s.optString("summary_state") == "pending" ||
+                (s.optString("state") == "ready" && s.optString("segments_state") == "pending")
+            )
+        if (!coming) {
+            missingSummaries.add(uuid)
+            return
+        }
+        if (summaryRetries.merge(uuid, 1, Int::plus)!! > MAX_SUMMARY_RETRIES) return
+        scope.launch {
+            delay(SUMMARY_RETRY_MS)
+            fetchSummaryDirect(uuid, rememberMissing = true)
+        }
+    }
+
     /** Below the episode's show notes: a rule, a title, the summary (no styling of its own: the show notes' theme). */
     fun formatSummaryCard(summaryHtml: String): String = "<hr /><h3>$summaryTitle</h3>$summaryHtml"
 
@@ -513,6 +538,8 @@ class MimiHub @Inject constructor(
         private const val SERVER_KEY = "server:url" // whose ready flags these are
         private val HUB_VTT = Regex(".*/v1/episodes/[A-Za-z0-9_-]+\\.vtt$")
         private const val MAX_PENDING_CHECKS = 20 // x 30 s of playing (MimiSegments): 10 min
+        private const val SUMMARY_RETRY_MS = 15_000L
+        private const val MAX_SUMMARY_RETRIES = 20 // x 15 s: 5 min (a long episode converting, then its ads and summary)
         private val SUMMARY_TAGS = setOf("h4", "p", "ul", "ol", "li", "strong", "em", "b", "i", "br")
         private val TAG = Regex("<(/?)([a-zA-Z][a-zA-Z0-9]*)[^>]*>")
 
