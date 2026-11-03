@@ -1,13 +1,13 @@
 package au.com.shiftyjelly.pocketcasts.repositories.mimi
 
 import android.content.Context
-import java.io.File
 import au.com.shiftyjelly.pocketcasts.models.db.dao.TranscriptDao
 import au.com.shiftyjelly.pocketcasts.models.entity.BaseEpisode
 import au.com.shiftyjelly.pocketcasts.models.entity.PodcastEpisode
 import au.com.shiftyjelly.pocketcasts.models.entity.Transcript
 import au.com.shiftyjelly.pocketcasts.preferences.Settings
 import dagger.hilt.android.qualifiers.ApplicationContext
+import java.io.File
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
@@ -28,6 +28,7 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
 import timber.log.Timber
+import au.com.shiftyjelly.pocketcasts.localization.R as LR
 
 /**
  * Client for mimi-hub on the server (neural_audio/hub/mimi_hub.py), which converts episodes to `.mimi`
@@ -409,21 +410,39 @@ class MimiHub @Inject constructor(
         if (isSummariesEnabled) fetchSummaryAsync(uuid)
     }
 
-fun summaryUrl(uuid: String) = "$base/v1/episodes/$uuid.summary.json"
+    // ---------- executive summaries (the hub's MIMI_HUB_SUMMARIZER: made after the ad marks) ----------
+
+    private fun summaryUrl(uuid: String) = "$base/v1/episodes/$uuid.summary.json"
 
     private val summaryDir by lazy { File(context.filesDir, "mimi_summaries").apply { mkdirs() } }
+    private val summaryTitle = context.getString(LR.string.mimi_summary_title)
     private val summaryCache = ConcurrentHashMap<String, String>()
     private val summaryArrivedFlow = MutableSharedFlow<String>(extraBufferCapacity = 16)
     private val noSummaryAnswers = ConcurrentHashMap<String, Int>()
+    private val pendingAnswers = ConcurrentHashMap<String, Int>()
+    private val missingSummaries = ConcurrentHashMap.newKeySet<String>()
+    private val serverFeatures = ConcurrentHashMap<String, Boolean>() // server URL -> it makes summaries
 
     /** UUIDs of episodes whose summary was just fetched from the hub, so screens showing them can reload. */
     val summaryArrived: SharedFlow<String> = summaryArrivedFlow.asSharedFlow()
 
-    fun getSummary(uuid: String): String? {
-        if (!isSummariesEnabled) return null
-        cachedSummary(uuid)?.let { return it }
-        fetchSummaryAsync(uuid)
-        return null
+    /**
+     * Whether this server makes summaries (GET /v1/features), asked once per server and session: no summary request
+     * at all to one that doesn't (a hub without that endpoint, or with summaries off). Blocking.
+     */
+    private fun serverSummarizes(): Boolean {
+        serverFeatures[base]?.let { return it }
+        val features = call(Request.Builder().url("$base/v1/features").build()) ?: return false // unreachable: ask again later
+        return features.optBoolean("summaries", false).also { serverFeatures[base] = it }
+    }
+
+    /** [uuid]'s summary for its show notes, if it's on the phone; else fetched in the background ([summaryArrived]). */
+    suspend fun getSummary(uuid: String, podcastUuid: String?): String? = withContext(Dispatchers.IO) {
+        if (!isSummariesEnabled || (podcastUuid != null && !transcribesPodcast(podcastUuid))) return@withContext null
+        cachedSummary(uuid) ?: run {
+            fetchSummaryAsync(uuid)
+            null
+        }
     }
 
     /** The summary if it's on the phone already; never asks the hub. */
@@ -437,40 +456,43 @@ fun summaryUrl(uuid: String) = "$base/v1/episodes/$uuid.summary.json"
     /**
      * For an episode that's playing with its ad marks known ([MimiSegments.onPlaying]): fetches the summary once
      * the hub has made it. The hub writes it right after the ad marks and says "pending" meanwhile. An episode it
-     * won't summarise (failed, summaries off, or processed before they existed) is dropped: at once for "failed",
-     * after two answers with no summary state otherwise (the hub sets "pending" just after saving the ad marks).
+     * won't summarise is dropped for the session: at once for "failed", after two answers with no summary state (the
+     * hub sets "pending" just after saving the ad marks), after MAX_PENDING_CHECKS of "pending" (one stuck there).
      */
     suspend fun checkSummary(uuid: String) {
         withContext(Dispatchers.IO) {
             if (!isSummariesEnabled || (noSummaryAnswers[uuid] ?: 0) >= 2 || cachedSummary(uuid) != null) return@withContext
+            if (!serverSummarizes()) return@withContext
             val s = status(uuid) ?: return@withContext // hub unreachable: the next check tries again
             when (s.optString("summary_state")) {
                 "ready" -> fetchSummaryDirect(uuid)
-                "pending" -> Unit
+                "pending" -> if (pendingAnswers.merge(uuid, 1, Int::plus)!! >= MAX_PENDING_CHECKS) noSummaryAnswers[uuid] = 2
                 "failed" -> noSummaryAnswers[uuid] = 2
                 else -> noSummaryAnswers.merge(uuid, 1, Int::plus)
             }
         }
     }
 
+    /** In the background, unless the hub already said it has none this session, or makes none. */
     fun fetchSummaryAsync(uuid: String) {
-        if (!isSummariesEnabled) return
+        if (!isSummariesEnabled || uuid in missingSummaries) return
         scope.launch {
-            fetchSummaryDirect(uuid)
+            if (serverSummarizes()) fetchSummaryDirect(uuid, rememberMissing = true)
         }
     }
 
-    suspend fun fetchSummaryDirect(uuid: String): String? = withContext(Dispatchers.IO) {
+    /** [rememberMissing]: a 404 means "don't ask again this session" (a summary still pending is picked up while the
+     * episode plays: [checkSummary]). */
+    suspend fun fetchSummaryDirect(uuid: String, rememberMissing: Boolean = false): String? = withContext(Dispatchers.IO) {
         if (!isSummariesEnabled) return@withContext null
         try {
             val req = Request.Builder().url(summaryUrl(uuid)).build()
             client.newCall(req).execute().use { res ->
+                if (res.code == 404 && rememberMissing) missingSummaries.add(uuid)
                 if (!res.isSuccessful) return@withContext null
-                val body = res.body.string()
-                val json = JSONObject(body)
-                val summary = json.optString("summary", "")
-                if (summary.isNotEmpty()) {
-                    summaryDir.mkdirs()
+                val summary = sanitizeSummary(JSONObject(res.body.string()).optString("summary", ""))
+                if (summary.isNotBlank()) {
+                    missingSummaries.remove(uuid)
                     File(summaryDir, "$uuid.html").writeText(summary)
                     summaryCache[uuid] = summary
                     summaryArrivedFlow.tryEmit(uuid)
@@ -483,21 +505,22 @@ fun summaryUrl(uuid: String) = "$base/v1/episodes/$uuid.summary.json"
         null
     }
 
-    fun formatSummaryCard(summaryHtml: String): String {
-        return """
-            <hr style="opacity: 0.2; margin-top: 20px;" />
-            <div style="background-color: rgba(128,128,128,0.12); border-left: 4px solid #f43f5e; padding: 14px; margin-top: 20px; border-radius: 8px;">
-                <h3 style="margin-top: 0; margin-bottom: 10px; color: #f43f5e;">✨ Episode Summary & Highlights</h3>
-                $summaryHtml
-            </div>
-        """.trimIndent()
-    }
-
+    /** Below the episode's show notes: a rule, a title, the summary (no styling of its own: the show notes' theme). */
+    fun formatSummaryCard(summaryHtml: String): String = "<hr /><h3>$summaryTitle</h3>$summaryHtml"
 
     companion object {
         const val MIME_TYPE = "audio/x-mimi"
         private const val SERVER_KEY = "server:url" // whose ready flags these are
         private val HUB_VTT = Regex(".*/v1/episodes/[A-Za-z0-9_-]+\\.vtt$")
+        private const val MAX_PENDING_CHECKS = 20 // x 30 s of playing (MimiSegments): 10 min
+        private val SUMMARY_TAGS = setOf("h4", "p", "ul", "ol", "li", "strong", "em", "b", "i", "br")
+        private val TAG = Regex("<(/?)([a-zA-Z][a-zA-Z0-9]*)[^>]*>")
+
+        /** Only the summary's few tags, without attributes (the hub already does this; the show notes are a WebView). */
+        fun sanitizeSummary(html: String): String = TAG.replace(html) { m ->
+            val tag = m.groupValues[2].lowercase()
+            if (tag in SUMMARY_TAGS) "<${m.groupValues[1]}$tag>" else ""
+        }
 
         /**
          * True for mimi-hub transcripts. Their cue times are on the timeline of the hub's `.mimi`, which is

@@ -3,6 +3,7 @@ package au.com.shiftyjelly.pocketcasts.repositories.shownotes
 import au.com.shiftyjelly.pocketcasts.coroutines.di.ApplicationScope
 import au.com.shiftyjelly.pocketcasts.models.db.dao.TranscriptDao
 import au.com.shiftyjelly.pocketcasts.repositories.BuildConfig
+import au.com.shiftyjelly.pocketcasts.repositories.mimi.MimiHub
 import au.com.shiftyjelly.pocketcasts.servers.ShowNotesServiceManager
 import au.com.shiftyjelly.pocketcasts.servers.podcast.TranscriptService
 import au.com.shiftyjelly.pocketcasts.servers.shownotes.ShowNotesState
@@ -11,9 +12,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.filter
-import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.first
-import au.com.shiftyjelly.pocketcasts.repositories.mimi.MimiHub
+import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.launch
 import okhttp3.CacheControl
 import okhttp3.HttpUrl.Companion.toHttpUrl
@@ -41,7 +41,7 @@ class ShowNotesManager @Inject constructor(
             }
         },
     ).combine(mimiHub.summaryArrived.filter { it == episodeUuid }.onStart { emit(episodeUuid) }) { state, _ ->
-        enhanceWithSummary(episodeUuid, state) // again when the summary arrives
+        enhanceWithSummary(podcastUuid, episodeUuid, state) // again when the summary arrives
     }
 
     suspend fun downloadToCacheShowNotes(podcastUuid: String, episodeUuid: String) {
@@ -77,12 +77,12 @@ class ShowNotesManager @Inject constructor(
                 }
             },
         )
-        return enhanceWithSummary(episodeUuid, state)
+        return enhanceWithSummary(podcastUuid, episodeUuid, state)
     }
 
-    private fun enhanceWithSummary(episodeUuid: String, state: ShowNotesState): ShowNotesState {
-        if (state !is ShowNotesState.Loaded || !mimiHub.isEnabled || !mimiHub.isSummariesEnabled) return state
-        val summary = mimiHub.getSummary(episodeUuid) ?: return state
+    private suspend fun enhanceWithSummary(podcastUuid: String, episodeUuid: String, state: ShowNotesState): ShowNotesState {
+        if (state !is ShowNotesState.Loaded || !mimiHub.isSummariesEnabled) return state
+        val summary = mimiHub.getSummary(episodeUuid, podcastUuid) ?: return state
         val marker = "<!-- mimi-summary -->"
         if (state.showNotes.contains(marker)) return state
         return ShowNotesState.Loaded(state.showNotes + marker + mimiHub.formatSummaryCard(summary))
