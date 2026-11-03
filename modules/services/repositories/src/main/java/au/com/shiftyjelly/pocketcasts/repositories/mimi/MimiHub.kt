@@ -355,6 +355,24 @@ class MimiHub @Inject constructor(
         cleanUrl(original).takeIf { it != original }?.let { StreamOverride(it, null, isMimi = false) }
     }
 
+    enum class SendResult { Queued, Processed, NotUsingHub, Unreachable }
+
+    /**
+     * Multi-select "Send to Mimi server": queues [episode] on the hub at normal priority. The hub ignores episodes it
+     * already has (queued, in progress or done) and re-queues failed ones. Blocking; call from Dispatchers.IO.
+     */
+    fun sendToServer(episode: PodcastEpisode): SendResult {
+        if (!usesHub(episode)) return SendResult.NotUsingHub
+        // (with the user's OpenRouter key set, asked anyway: the hub redoes ad detection that failed for want of one)
+        if (isKnownReady(episode.uuid) && settings.mimiOpenRouterKey.value.isBlank()) return SendResult.Processed
+        val url = episode.downloadUrl?.takeIf { it.isNotBlank() } ?: return SendResult.NotUsingHub
+        val r = requestConversion(episode, url, priority = 1) ?: return SendResult.Unreachable
+        if (r.optString("state") != "ready") return SendResult.Queued
+        markReady(episode.uuid)
+        if (transcribes(episode)) scope.launch { attachTranscript(episode.uuid) }
+        return SendResult.Processed
+    }
+
     private fun markReady(uuid: String) {
         forOtherServer()
         prefs.edit().putBoolean(uuid, true).apply()

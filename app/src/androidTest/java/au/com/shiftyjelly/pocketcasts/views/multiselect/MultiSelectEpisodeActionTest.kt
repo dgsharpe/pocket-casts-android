@@ -22,6 +22,7 @@ class MultiSelectEpisodeActionTest {
             MultiSelectEpisodeAction.MarkAsPlayed,
             MultiSelectEpisodeAction.AddToPlaylist,
             MultiSelectEpisodeAction.RemoveListeningHistory,
+            MultiSelectEpisodeAction.SendToMimiServer,
         )
         assertEquals(expectedActions, result)
     }

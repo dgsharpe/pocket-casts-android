@@ -175,6 +175,7 @@ class MultiSelectToolbarItemsTest {
         crashLogging = mock(),
         shareDialogFactory = mock(),
         addToPlaylistFragmentFactory = mock(),
+        mimiHub = mock(),
     )
 
     private fun bookmarksHelper(source: SourceView = SourceView.PLAYER) = MultiSelectBookmarksHelper(

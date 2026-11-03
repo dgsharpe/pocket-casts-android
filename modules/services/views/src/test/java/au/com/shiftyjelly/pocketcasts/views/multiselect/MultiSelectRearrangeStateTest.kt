@@ -4,6 +4,7 @@ import au.com.shiftyjelly.pocketcasts.analytics.AnalyticsTracker
 import au.com.shiftyjelly.pocketcasts.analytics.SourceView
 import au.com.shiftyjelly.pocketcasts.analytics.testing.TestEventSink
 import au.com.shiftyjelly.pocketcasts.preferences.Settings
+import au.com.shiftyjelly.pocketcasts.preferences.UserSetting
 import com.automattic.eventhorizon.EventHorizon
 import com.automattic.eventhorizon.MultiSelectViewOverflowMenuRearrangeActionMovedEvent
 import com.automattic.eventhorizon.MultiSelectViewOverflowMenuRearrangeFinishedEvent
@@ -14,10 +15,13 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.verify
+import org.mockito.kotlin.whenever
 import au.com.shiftyjelly.pocketcasts.localization.R as LR
 
 class MultiSelectRearrangeStateTest {
-    private val settings = mock<Settings>()
+    private val settings = mock<Settings>().also {
+        whenever(it.mimiHubUrl).thenReturn(UserSetting.Mock("http://hub:8765", mock())) // (a server set: Send is listed)
+    }
     private val sink = TestEventSink()
 
     private fun createState(showRemoveListeningHistory: Boolean = false) = MultiSelectRearrangeState(
@@ -34,7 +38,7 @@ class MultiSelectRearrangeStateTest {
 
         assertEquals(MultiSelectRearrangeTitle(LR.string.multiselect_actions_shown), items[0])
         assertEquals(MultiSelectRearrangeTitle(LR.string.multiselect_actions_hidden), items[5])
-        assertEquals(10, items.size)
+        assertEquals(11, items.size)
     }
 
     @Test
@@ -51,7 +55,7 @@ class MultiSelectRearrangeStateTest {
         state.onItemMove(fromPosition = 1, toPosition = 2)
         state.onItemTouchFinished(2)
 
-        verify(settings).setMultiSelectItems(listOf("archive", "download", "mark_as_played", "play_next", "add_to_playlist", "play_last", "star", "share"))
+        verify(settings).setMultiSelectItems(listOf("archive", "download", "mark_as_played", "play_next", "add_to_playlist", "play_last", "star", "share", "mimi_server"))
         assertEquals(
             MultiSelectViewOverflowMenuRearrangeActionMovedEvent(
                 source = SourceView.PODCAST_SCREEN.analyticsValue,
@@ -73,7 +77,7 @@ class MultiSelectRearrangeStateTest {
         state.onItemMove(fromPosition = 1, toPosition = 6)
         state.onItemTouchFinished(5)
 
-        verify(settings).setMultiSelectItems(listOf("archive", "mark_as_played", "play_next", "add_to_playlist", "download", "play_last", "star", "share"))
+        verify(settings).setMultiSelectItems(listOf("archive", "mark_as_played", "play_next", "add_to_playlist", "download", "play_last", "star", "share", "mimi_server"))
         assertEquals(
             MultiSelectViewOverflowMenuRearrangeActionMovedEvent(
                 source = SourceView.PODCAST_SCREEN.analyticsValue,
@@ -119,7 +123,7 @@ class MultiSelectRearrangeStateTest {
         state.onItemMove(fromPosition = 2, toPosition = 1)
         state.onItemTouchFinished(1)
 
-        verify(settings).setMultiSelectItems(listOf("archive", "download", "mark_as_played", "play_next", "add_to_playlist", "play_last", "star", "share"))
+        verify(settings).setMultiSelectItems(listOf("archive", "download", "mark_as_played", "play_next", "add_to_playlist", "play_last", "star", "share", "mimi_server"))
         assertTrue(sink.isEmpty())
     }
 

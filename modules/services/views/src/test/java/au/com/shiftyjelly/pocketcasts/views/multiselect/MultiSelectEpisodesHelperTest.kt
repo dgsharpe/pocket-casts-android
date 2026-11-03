@@ -74,6 +74,7 @@ class MultiSelectEpisodesHelperTest {
         crashLogging = mock(),
         shareDialogFactory = mock(),
         addToPlaylistFragmentFactory = mock(),
+        mimiHub = mock(),
     ).apply { source = SourceView.PODCAST_SCREEN }
 
     @Test

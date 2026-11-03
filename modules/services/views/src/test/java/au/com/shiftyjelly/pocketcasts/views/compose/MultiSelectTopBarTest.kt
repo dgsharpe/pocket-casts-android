@@ -126,6 +126,7 @@ class MultiSelectTopBarTest {
             crashLogging = mock(),
             shareDialogFactory = mock(),
             addToPlaylistFragmentFactory = mock(),
+            mimiHub = mock(),
         ).apply { source = SourceView.FILTERS }
         composeTestRule.runOnUiThread {
             helper.isMultiSelecting = true
