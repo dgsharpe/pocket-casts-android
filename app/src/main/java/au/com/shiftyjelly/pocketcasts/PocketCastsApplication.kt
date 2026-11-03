@@ -24,6 +24,7 @@ import au.com.shiftyjelly.pocketcasts.repositories.endofyear.EndOfYearSync
 import au.com.shiftyjelly.pocketcasts.repositories.file.FileStorage
 import au.com.shiftyjelly.pocketcasts.repositories.file.StorageOptions
 import au.com.shiftyjelly.pocketcasts.repositories.jobs.VersionMigrationsWorker
+import au.com.shiftyjelly.pocketcasts.repositories.mimi.MimiHub
 import au.com.shiftyjelly.pocketcasts.repositories.mimi.MimiQueuePrefetcher
 import au.com.shiftyjelly.pocketcasts.repositories.notification.NotificationHelper
 import au.com.shiftyjelly.pocketcasts.repositories.notification.NotificationManager
@@ -129,6 +130,8 @@ class PocketCastsApplication :
     @Inject lateinit var playerWidgetManager: PlayerWidgetManager
 
     @Inject lateinit var mimiQueuePrefetcher: MimiQueuePrefetcher
+
+    @Inject lateinit var mimiHub: MimiHub
 
     @Inject lateinit var upNextDao: UpNextDao
 
@@ -237,6 +240,17 @@ class PocketCastsApplication :
         )
     }
 
+    // mimi-hub: a server that scales to zero starts loading its models while an episode is picked
+    private fun warmMimiHubWhenForegrounded() {
+        processLifecycleOwner.lifecycle.addObserver(
+            object : DefaultLifecycleObserver {
+                override fun onStart(owner: LifecycleOwner) {
+                    mimiHub.warm()
+                }
+            },
+        )
+    }
+
     private fun applySelectedAppIconWhenBackgrounded() {
         processLifecycleOwner.lifecycle.addObserver(
             object : DefaultLifecycleObserver {
@@ -266,6 +280,7 @@ class PocketCastsApplication :
         runBlocking {
             applySelectedAppIconWhenBackgrounded()
             refreshWhatsNewWhenForegrounded()
+            warmMimiHubWhenForegrounded()
 
             notificationHelper.setupNotificationChannels()
             notificationManager.setupOnboardingNotifications()

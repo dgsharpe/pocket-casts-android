@@ -215,6 +215,18 @@ class MimiHub @Inject constructor(
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val awaitingTranscript = ConcurrentHashMap.newKeySet<String>()
 
+    @Volatile private var lastWarm = 0L
+
+    /** Wakes a hub that scales to zero (hub/modal_app.py) when the app comes to the foreground, so its models
+     * load while an episode is picked. At most every 15 min: each wake keeps a billed GPU up for a minute or two,
+     * and switching apps while listening mustn't keep it up. A hub without POST /v1/warm answers 404: no-op. */
+    fun warm() {
+        val now = System.currentTimeMillis()
+        if (!isEnabled || now - lastWarm < 15 * 60_000L) return
+        lastWarm = now
+        scope.launch { call(Request.Builder().url("$base/v1/warm").post(ByteArray(0).toRequestBody()).build()) }
+    }
+
     /** Polls the hub in the background and attaches its transcript once the episode is fully ready. */
     fun attachTranscriptWhenReady(uuid: String) {
         if (isKnownReady(uuid)) {
