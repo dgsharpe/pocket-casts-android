@@ -19,6 +19,7 @@ import au.com.shiftyjelly.pocketcasts.analytics.SourceView
 import au.com.shiftyjelly.pocketcasts.analytics.testing.TestEventSink
 import au.com.shiftyjelly.pocketcasts.compose.AppTheme
 import au.com.shiftyjelly.pocketcasts.preferences.Settings
+import au.com.shiftyjelly.pocketcasts.preferences.UserSetting
 import au.com.shiftyjelly.pocketcasts.ui.theme.Theme
 import au.com.shiftyjelly.pocketcasts.views.multiselect.MultiSelectRearrangeState
 import com.automattic.eventhorizon.EventHorizon
@@ -28,6 +29,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.mockito.kotlin.mock
+import org.mockito.kotlin.whenever
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import au.com.shiftyjelly.pocketcasts.ui.R as UR
@@ -41,7 +43,7 @@ class MultiSelectRearrangePageTest {
     private val calls = mutableListOf<String>()
 
     private val state = MultiSelectRearrangeState(
-        settings = mock<Settings>(),
+        settings = mock<Settings>().also { whenever(it.mimiHubUrl).thenReturn(UserSetting.Mock("http://hub:8765", mock())) },
         eventHorizon = EventHorizon(TestEventSink()),
         maxToolbarIcons = 4,
         source = SourceView.PODCAST_SCREEN,

@@ -97,8 +97,9 @@ class PodcastSettingsFragment :
                 onChangeAutoArchiveAfterInactiveSetting = ::showAutoArchiveAfterInactiveDialog,
                 onChangeAutoArchiveLimitSetting = ::showAutoArchiveLimitDialog,
                 onChangePlaybackEffects = viewModel::changePlaybackEffects,
-                onChangeMimiConversion = { showMimiConversionDialog(transcripts = false) },
-                onChangeMimiTranscription = { showMimiConversionDialog(transcripts = true) },
+                onChangeMimiConversion = { showMimiConversionDialog(MimiConversionFragment.Target.Compression) },
+                onChangeMimiTranscription = { showMimiConversionDialog(MimiConversionFragment.Target.Transcripts) },
+                onChangeMimiSkipAds = { showMimiConversionDialog(MimiConversionFragment.Target.SkipAds) },
                 onDecrementPlaybackSpeed = viewModel::decrementPlaybackSpeed,
                 onIncrementPlaybackSpeed = viewModel::incrementPlaybackSpeed,
                 onChangeTrimMode = viewModel::changeTrimMode,
@@ -128,11 +129,11 @@ class PodcastSettingsFragment :
         this.navController = null
     }
 
-    private fun showMimiConversionDialog(transcripts: Boolean) {
+    private fun showMimiConversionDialog(target: MimiConversionFragment.Target) {
         if (viewModel.uiState.value == null || childFragmentManager.findFragmentByTag("podcast-mimi") != null) {
             return
         }
-        MimiConversionFragment.newInstance(transcripts).show(childFragmentManager, "podcast-mimi")
+        MimiConversionFragment.newInstance(target).show(childFragmentManager, "podcast-mimi")
     }
 
     private fun showUpNextPositionDialog() {

@@ -327,6 +327,10 @@ interface Settings {
     /** Base URL of mimi-hub (episode conversion to `.mimi` + transcripts); blank disables it. */
     val mimiHubUrl: UserSetting<String>
 
+    /** The user's own OpenRouter API key, sent with conversion requests for the server's ad detection (a server
+     * without one of its own, e.g. on Modal); blank: the server's. */
+    val mimiOpenRouterKey: UserSetting<String>
+
     /** Fetch episodes straight from their host, skipping ad/analytics prefix redirects (Podtrac, Podscribe…). */
     val stripTrackingRedirects: UserSetting<Boolean>
 
@@ -348,7 +352,7 @@ interface Settings {
     /** Leave skipped mimi-hub segments out of the seek bar's timeline (scrubbing and skip buttons step over them). */
     val mimiTrimTimeline: UserSetting<Boolean>
 
-    /** Only prefetch Up Next episodes on mimi-hub while connected to an unmetered Wi-Fi connection. */
+    /** Only prefetch Up Next episodes on mimi-hub while on Wi-Fi (off by default). */
     val mimiPrefetchOnlyOnWifi: UserSetting<Boolean>
     val collectListeningStats: ReadWriteSetting<Boolean>
 

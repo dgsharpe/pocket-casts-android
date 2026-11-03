@@ -184,7 +184,7 @@ class TranscriptViewModel @AssistedInject constructor(
      */
     private fun foldSkippedSegments(transcript: Transcript.Text): Transcript.Text {
         if (!MimiHub.isHubTranscriptUrl(transcript.url)) return transcript
-        val cuts = mimiSegments.transcriptCuts(transcript.episodeUuid)
+        val cuts = mimiSegments.transcriptCuts(transcript.episodeUuid, transcript.podcastUuid)
         if (cuts.isEmpty()) return transcript
         val entries = transcript.entries.foldMimiSegments(cuts) { segment ->
             val kind = context.getString(if (segment.isAd) LR.string.transcript_mimi_ad_break else LR.string.transcript_mimi_self_promotion)

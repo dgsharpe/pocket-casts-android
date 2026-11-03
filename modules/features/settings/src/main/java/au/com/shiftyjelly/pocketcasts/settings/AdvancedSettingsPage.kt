@@ -158,6 +158,7 @@ fun AdvancedSettingsView(
                         onCheckedChange = state.mimiState.onPrefetchOnlyOnWifiChange,
                     )
                     MimiHubUrlRow(state.mimiState)
+                    MimiOpenRouterKeyRow(state.mimiState)
                 }
             }
         }
@@ -286,6 +287,36 @@ private fun MimiHubUrlRow(
     }
 }
 
+@Composable
+private fun MimiOpenRouterKeyRow(
+    state: AdvancedSettingsViewModel.State.MimiState,
+    modifier: Modifier = Modifier,
+) {
+    var showDialog by remember { mutableStateOf(false) }
+    val title = stringResource(LR.string.settings_advanced_mimi_openrouter_key)
+    val none = stringResource(LR.string.settings_advanced_mimi_openrouter_key_none)
+    SettingRow(
+        primaryText = title,
+        secondaryText = state.openRouterKeyHint.ifBlank { none },
+        indent = false,
+        modifier = modifier.clickable { showDialog = true },
+    )
+    if (showDialog) {
+        // opens blank, so the saved key is never shown; saving blank removes it
+        FormFieldDialog(
+            title = title,
+            placeholder = "sk-or-…",
+            initialValue = "",
+            keyboardType = KeyboardType.Password,
+            onConfirm = {
+                state.onOpenRouterKeyChange(it)
+                showDialog = false
+            },
+            onDismissRequest = { showDialog = false },
+        )
+    }
+}
+
 @Preview(showBackground = true)
 @Composable
 private fun AdvancedSettingsPreview(
@@ -326,6 +357,8 @@ private fun AdvancedSettingsPreview(
                     onPrefetchOnlyOnWifiChange = {},
                     hubUrl = "http://your-hub:8765",
                     onHubUrlChange = {},
+                    openRouterKeyHint = "",
+                    onOpenRouterKeyChange = {},
                 ),
             ),
             onBackPress = {},

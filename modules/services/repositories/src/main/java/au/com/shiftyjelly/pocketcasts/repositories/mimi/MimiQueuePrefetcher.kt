@@ -2,38 +2,38 @@ package au.com.shiftyjelly.pocketcasts.repositories.mimi
 
 import android.content.Context
 import android.net.NetworkCapabilities
-import au.com.shiftyjelly.pocketcasts.preferences.Settings
-import au.com.shiftyjelly.pocketcasts.repositories.playback.NetworkConnectionWatcher
-import au.com.shiftyjelly.pocketcasts.utils.Network
-import dagger.hilt.android.qualifiers.ApplicationContext
-import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.filter
-import kotlinx.coroutines.flow.map
 import au.com.shiftyjelly.pocketcasts.coroutines.di.ApplicationScope
 import au.com.shiftyjelly.pocketcasts.models.entity.PodcastEpisode
+import au.com.shiftyjelly.pocketcasts.preferences.Settings
+import au.com.shiftyjelly.pocketcasts.repositories.playback.NetworkConnectionWatcher
 import au.com.shiftyjelly.pocketcasts.repositories.playback.UpNextQueue
 import au.com.shiftyjelly.pocketcasts.repositories.podcast.EpisodeManager
+import au.com.shiftyjelly.pocketcasts.utils.Network
+import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.File
 import java.util.concurrent.atomic.AtomicBoolean
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.coroutines.cancellation.CancellationException
-import kotlin.time.Duration.Companion.minutes
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.isActive
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import timber.log.Timber
 
 /**
- * Has mimi-hub convert everything in Up Next ahead of time: whenever the queue changes (and every few minutes
- * as a backstop) the first [MAX_EPISODES] queued episodes are requested at normal priority, so by the time
+ * Has mimi-hub convert everything in Up Next ahead of time: whenever the queue changes, when Wi-Fi comes back, and
+ * while some are still being made (30 s, then 2, 5 and 15 min apart) the playing episode and the first [MAX_EPISODES]
+ * queued ones are requested at normal priority, so by the time
  * one is played or downloaded its `.mimi` and transcript are usually ready. Streams still jump the hub's queue.
  * Ready episodes also get their ad / self-promotion segments cached, so skipping works offline.
  */
@@ -50,14 +50,15 @@ class MimiQueuePrefetcher @Inject constructor(
 ) {
     private val started = AtomicBoolean(false)
     private val sweepLock = Mutex()
-    private var retryJob: kotlinx.coroutines.Job? = null
+    private var retryJob: Job? = null
+    private var retryStep = 0 // into RETRY_DELAYS_MS: each sweep that still finds work pending waits longer
 
     @OptIn(FlowPreview::class)
     fun start() {
         if (!started.compareAndSet(false, true)) return
         scope.launch(Dispatchers.IO) { fixDownloadedMimiSizes() }
         scope.launch(Dispatchers.IO) {
-            upNextQueue.changesFlow.debounce(3_000).collect { sweep() }
+            upNextQueue.changesFlow.debounce(3_000).collect { sweep(fresh = true) }
         }
         scope.launch(Dispatchers.IO) {
             networkConnectionWatcher.networkCapabilities
@@ -91,7 +92,9 @@ class MimiQueuePrefetcher @Inject constructor(
         }
     }
 
-    private suspend fun sweep(): Unit = sweepLock.withLock {
+    /** [fresh]: after a change of the queue, the retries start again from the shortest delay. */
+    private suspend fun sweep(fresh: Boolean = false): Unit = sweepLock.withLock {
+        if (fresh) retryStep = 0
         if (!mimiHub.isEnabled) return@withLock
         if (settings.mimiPrefetchOnlyOnWifi.value && !Network.isWifiConnection(context)) return@withLock
         try {
@@ -109,10 +112,16 @@ class MimiQueuePrefetcher @Inject constructor(
             }
             retryJob?.cancel()
             if (hasPending) {
+                // backing off: a job stuck behind a long queue (or for good) mustn't be polled every 30 s for hours,
+                // nor wake a server that scales to zero (billed per start) that often
+                val wait = RETRY_DELAYS_MS[retryStep.coerceAtMost(RETRY_DELAYS_MS.lastIndex)]
+                retryStep++
                 retryJob = scope.launch(Dispatchers.IO) {
-                    delay(RETRY_DELAY_MS)
+                    delay(wait)
                     sweep()
                 }
+            } else {
+                retryStep = 0
             }
         } catch (e: CancellationException) {
             throw e
@@ -123,6 +132,6 @@ class MimiQueuePrefetcher @Inject constructor(
 
     private companion object {
         const val MAX_EPISODES = 30
-        const val RETRY_DELAY_MS = 30_000L
+        val RETRY_DELAYS_MS = longArrayOf(30_000L, 2 * 60_000L, 5 * 60_000L, 15 * 60_000L)
     }
 }

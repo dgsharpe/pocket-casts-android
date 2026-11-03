@@ -9,6 +9,8 @@ This fork's `mimi` branch adds, on top of Automattic's Pocket Casts:
   ad breaks in the transcript;
 - per-podcast choices for compression and for transcripts + ad marks (Settings > Advanced > Mimi server, and each
   podcast's settings).
+- a server that scales to zero (mimi-hub on Modal) is woken when the app comes to the foreground (at most every
+  15 minutes); a server with a token takes it in the URL, `https://<server>/t/<token>`.
 
 The server, the decoder (`android/mimi`, which this build includes from `../android/mimi`) and the setup and build
 instructions are in [joshjob42/Podcast-compress-transcribe](https://github.com/joshjob42/Podcast-compress-transcribe):

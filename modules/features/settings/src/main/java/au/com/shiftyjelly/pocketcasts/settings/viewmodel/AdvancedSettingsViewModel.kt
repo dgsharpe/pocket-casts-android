@@ -114,6 +114,11 @@ class AdvancedSettingsViewModel @Inject constructor(
             settings.mimiHubUrl.set(it.trim(), updateModifiedAt = false)
             updateMimiState()
         },
+        openRouterKeyHint = settings.mimiOpenRouterKey.value.takeIf { it.isNotBlank() }?.let { "…" + it.takeLast(4) }.orEmpty(),
+        onOpenRouterKeyChange = {
+            settings.mimiOpenRouterKey.set(it.trim(), updateModifiedAt = false)
+            updateMimiState()
+        },
     )
 
     private fun updateMimiState() {
@@ -182,6 +187,9 @@ class AdvancedSettingsViewModel @Inject constructor(
             val onPrefetchOnlyOnWifiChange: (Boolean) -> Unit,
             val hubUrl: String,
             val onHubUrlChange: (String) -> Unit,
+            /** The key's last characters ("…ab12"), blank if none; the key itself isn't shown. */
+            val openRouterKeyHint: String,
+            val onOpenRouterKeyChange: (String) -> Unit,
         )
 
         data class BackgroundSyncOnMeteredState(
