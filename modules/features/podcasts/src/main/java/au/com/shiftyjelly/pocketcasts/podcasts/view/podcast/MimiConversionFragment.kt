@@ -28,7 +28,7 @@ internal class MimiConversionFragment : BaseDialogFragment() {
     private val viewModel by viewModels<PodcastSettingsViewModel>({ requireParentFragment() })
     private val target: Target
         get() = arguments?.getString(ARG_TARGET)?.let { Target.valueOf(it) }
-            ?: if (arguments?.getBoolean(ARG_TRANSCRIPTS) == true) Target.Transcripts else Target.Compression
+            ?: Target.Compression
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -77,15 +77,10 @@ internal class MimiConversionFragment : BaseDialogFragment() {
     }
 
     companion object {
-        private const val ARG_TRANSCRIPTS = "transcripts"
         private const val ARG_TARGET = "target"
 
         fun newInstance(target: Target) = MimiConversionFragment().apply {
             arguments = Bundle().apply { putString(ARG_TARGET, target.name) }
-        }
-
-        fun newInstance(transcripts: Boolean) = MimiConversionFragment().apply {
-            arguments = Bundle().apply { putBoolean(ARG_TRANSCRIPTS, transcripts) }
         }
     }
 }
