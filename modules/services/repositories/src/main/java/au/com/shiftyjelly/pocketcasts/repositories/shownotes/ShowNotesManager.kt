@@ -3,13 +3,17 @@ package au.com.shiftyjelly.pocketcasts.repositories.shownotes
 import au.com.shiftyjelly.pocketcasts.coroutines.di.ApplicationScope
 import au.com.shiftyjelly.pocketcasts.models.db.dao.TranscriptDao
 import au.com.shiftyjelly.pocketcasts.repositories.BuildConfig
+import au.com.shiftyjelly.pocketcasts.repositories.mimi.MimiHub
 import au.com.shiftyjelly.pocketcasts.servers.ShowNotesServiceManager
 import au.com.shiftyjelly.pocketcasts.servers.podcast.TranscriptService
 import au.com.shiftyjelly.pocketcasts.servers.shownotes.ShowNotesState
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.launch
 import okhttp3.CacheControl
 import okhttp3.HttpUrl.Companion.toHttpUrl
@@ -20,6 +24,7 @@ class ShowNotesManager @Inject constructor(
     private val transcriptDao: TranscriptDao,
     private val transcriptsService: TranscriptService,
     showNotesProcessorFactory: ShowNotesProcessor.Factory,
+    private val mimiHub: MimiHub,
 ) {
     private val showNotesProcessor = showNotesProcessorFactory.create(BuildConfig.SERVER_SHOW_NOTES_URLS.toHttpUrl())
 
@@ -35,7 +40,9 @@ class ShowNotesManager @Inject constructor(
                 )
             }
         },
-    )
+    ).combine(mimiHub.summaryArrived.filter { it == episodeUuid }.onStart { emit(episodeUuid) }) { state, _ ->
+        enhanceWithSummary(podcastUuid, episodeUuid, state) // again when the summary arrives
+    }
 
     suspend fun downloadToCacheShowNotes(podcastUuid: String, episodeUuid: String) {
         showNotesServiceManager.downloadToCacheShowNotes(
@@ -56,17 +63,28 @@ class ShowNotesManager @Inject constructor(
         )
     }
 
-    suspend fun loadShowNotes(podcastUuid: String, episodeUuid: String): ShowNotesState = showNotesServiceManager.loadShowNotes(
-        podcastUuid = podcastUuid,
-        episodeUuid = episodeUuid,
-        processShowNotes = { showNotes ->
-            scope.launch {
-                showNotesProcessor.process(
-                    podcastUuid = podcastUuid,
-                    episodeUuid = episodeUuid,
-                    showNotes = showNotes,
-                )
-            }
-        },
-    )
+    suspend fun loadShowNotes(podcastUuid: String, episodeUuid: String): ShowNotesState {
+        val state = showNotesServiceManager.loadShowNotes(
+            podcastUuid = podcastUuid,
+            episodeUuid = episodeUuid,
+            processShowNotes = { showNotes ->
+                scope.launch {
+                    showNotesProcessor.process(
+                        podcastUuid = podcastUuid,
+                        episodeUuid = episodeUuid,
+                        showNotes = showNotes,
+                    )
+                }
+            },
+        )
+        return enhanceWithSummary(podcastUuid, episodeUuid, state)
+    }
+
+    private suspend fun enhanceWithSummary(podcastUuid: String, episodeUuid: String, state: ShowNotesState): ShowNotesState {
+        if (state !is ShowNotesState.Loaded || !mimiHub.isSummariesEnabled) return state
+        val summary = mimiHub.getSummary(episodeUuid, podcastUuid) ?: return state
+        val marker = "<!-- mimi-summary -->"
+        if (state.showNotes.contains(marker)) return state
+        return ShowNotesState.Loaded(state.showNotes + marker + mimiHub.formatSummaryCard(summary))
+    }
 }

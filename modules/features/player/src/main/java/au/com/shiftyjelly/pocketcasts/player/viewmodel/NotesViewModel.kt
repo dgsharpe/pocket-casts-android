@@ -7,6 +7,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import au.com.shiftyjelly.pocketcasts.models.entity.BaseEpisode
 import au.com.shiftyjelly.pocketcasts.models.entity.PodcastEpisode
+import au.com.shiftyjelly.pocketcasts.repositories.mimi.MimiHub
 import au.com.shiftyjelly.pocketcasts.repositories.playback.PlaybackManager
 import au.com.shiftyjelly.pocketcasts.repositories.podcast.PodcastManager
 import au.com.shiftyjelly.pocketcasts.repositories.shownotes.ShowNotesManager
@@ -27,6 +28,7 @@ class NotesViewModel
     private val podcastManager: PodcastManager,
     private val playbackManager: PlaybackManager,
     private val showNotesManager: ShowNotesManager,
+    mimiHub: MimiHub,
     @ApplicationContext context: Context,
 ) : ViewModel() {
 
@@ -38,6 +40,17 @@ class NotesViewModel
     }
     private val errorLoadingString = context.getString(LR.string.error_loading_show_notes)
     private var loadShowNotesJob: Job? = null
+
+    init {
+        // the hub's summary often arrives while the episode plays: show it when it does
+        viewModelScope.launch {
+            mimiHub.summaryArrived.collect { uuid ->
+                val current = episode.value?.takeIf { it.uuid == uuid } ?: return@collect
+                loadShowNotesJob?.cancel()
+                loadShowNotesJob = viewModelScope.launch { loadPodcastAndShowNotes(current) }
+            }
+        }
+    }
 
     val showNotes = MutableLiveData<ShowNotesState>().apply { postValue(ShowNotesState.Loaded("")) }
     val episode = MutableLiveData<PodcastEpisode>()

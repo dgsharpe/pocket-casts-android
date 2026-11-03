@@ -2040,6 +2040,9 @@
     <string name="podcast_settings_mimi_conversion_default_off" translatable="false">Default (off)</string>
     <string name="podcast_settings_mimi_conversion_on" translatable="false">On</string>
     <string name="podcast_settings_mimi_conversion_off" translatable="false">Off</string>
+    <string name="settings_advanced_mimi_show_summaries" translatable="false">Episode summaries</string>
+    <string name="mimi_summary_title" translatable="false">Episode summary</string>
+    <string name="settings_advanced_mimi_show_summaries_summary" translatable="false">Show the Mimi server\'s summary and highlights of an episode below its show notes (if the server makes them).</string>
     <string name="settings_advanced_mimi_skip_ads" translatable="false">Skip ads</string>
     <string name="settings_advanced_mimi_skip_ads_summary" translatable="false">Jump over ad breaks the Mimi server found in the transcript. Works for episodes played as .mimi; seek back into an ad to hear it.</string>
     <string name="settings_advanced_mimi_skip_promos" translatable="false">Skip self-promotion</string>

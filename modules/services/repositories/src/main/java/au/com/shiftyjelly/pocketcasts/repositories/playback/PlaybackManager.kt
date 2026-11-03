@@ -2804,6 +2804,7 @@ open class PlaybackManager @Inject constructor(
             return
         }
 
+        mimiSegments.onPlaying(episode.uuid)
         mimiSegments.toSkip(episode, positionMs.toLong())?.let { segment ->
             skipMimiSegment(segment)
             return
