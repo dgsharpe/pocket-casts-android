@@ -151,6 +151,12 @@ fun AdvancedSettingsView(
                         isChecked = state.mimiState.downloadOnStreamChecked,
                         onCheckedChange = state.mimiState.onDownloadOnStreamChange,
                     )
+                    MimiSwitchRow(
+                        primaryText = stringResource(LR.string.settings_advanced_mimi_prefetch_wifi_only),
+                        secondaryText = stringResource(LR.string.settings_advanced_mimi_prefetch_wifi_only_summary),
+                        isChecked = state.mimiState.prefetchOnlyOnWifiChecked,
+                        onCheckedChange = state.mimiState.onPrefetchOnlyOnWifiChange,
+                    )
                     MimiHubUrlRow(state.mimiState)
                     MimiOpenRouterKeyRow(state.mimiState)
                 }
@@ -347,6 +353,8 @@ private fun AdvancedSettingsPreview(
                     onTrimTimelineChange = {},
                     downloadOnStreamChecked = true,
                     onDownloadOnStreamChange = {},
+                    prefetchOnlyOnWifiChecked = true,
+                    onPrefetchOnlyOnWifiChange = {},
                     hubUrl = "http://your-hub:8765",
                     onHubUrlChange = {},
                     openRouterKeyHint = "",

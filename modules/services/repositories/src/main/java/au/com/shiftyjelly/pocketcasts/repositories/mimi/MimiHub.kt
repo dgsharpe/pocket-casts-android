@@ -282,14 +282,14 @@ class MimiHub @Inject constructor(
 
     /**
      * For queued episodes (MimiQueuePrefetcher): makes sure the hub has, or is making, [episode] at normal
-     * priority, and attaches its transcript once ready. A failed conversion is re-requested at most once
-     * per app session. Blocking network calls; call from Dispatchers.IO.
+     * priority, and attaches its transcript once ready. Returns true if the conversion is pending / in flight.
+     * A failed conversion is re-requested at most once per app session. Blocking network calls; call from Dispatchers.IO.
      */
-    suspend fun prefetch(episode: PodcastEpisode) {
-        if (!usesHub(episode) || isKnownReady(episode.uuid)) return
-        val url = episode.downloadUrl?.takeIf { it.isNotBlank() } ?: return
-        val status = status(episode.uuid)
-        when (status?.optString("state")) {
+    suspend fun prefetch(episode: PodcastEpisode): Boolean {
+        if (!usesHub(episode) || isKnownReady(episode.uuid)) return false
+        val url = episode.downloadUrl?.takeIf { it.isNotBlank() } ?: return false
+        val status = status(episode.uuid) ?: return false
+        return when (status.optString("state")) {
             "ready" -> {
                 markReady(episode.uuid)
                 if (transcribes(episode)) attachTranscript(episode.uuid)
@@ -298,17 +298,26 @@ class MimiHub @Inject constructor(
                 if (noAds && settings.mimiOpenRouterKey.value.isNotBlank() && prefetchRequested.add(episode.uuid)) {
                     requestConversion(episode, url, priority = 1)
                 }
+                false
             }
 
             "missing" -> {
                 prefetchRequested.add(episode.uuid)
                 requestConversion(episode, url, priority = 1)
+                true
             }
 
             // retried once per session; if this session's own request failed, leave it
-            "failed" -> if (prefetchRequested.add(episode.uuid)) requestConversion(episode, url, priority = 1)
+            "failed" -> {
+                if (prefetchRequested.add(episode.uuid)) {
+                    requestConversion(episode, url, priority = 1)
+                    true
+                } else {
+                    false
+                }
+            }
 
-            else -> Unit // unreachable, or queued / converting
+            else -> true // queued, starting, downloading, encoding, transcribing
         }
     }
 

@@ -258,6 +258,12 @@ class SettingsImpl @Inject constructor(
         sharedPrefs = sharedPreferences,
     )
 
+    override val mimiPrefetchOnlyOnWifi = UserSetting.BoolPref(
+        sharedPrefKey = "mimiPrefetchOnlyOnWifi",
+        defaultValue = false, // (off: the prefetch only sends small requests; the server downloads the audio)
+        sharedPrefs = sharedPreferences,
+    )
+
     override val collectListeningStats = UserSetting.BoolPref(
         sharedPrefKey = "collectListeningStats",
         defaultValue = true,

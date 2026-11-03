@@ -351,6 +351,9 @@ interface Settings {
 
     /** Leave skipped mimi-hub segments out of the seek bar's timeline (scrubbing and skip buttons step over them). */
     val mimiTrimTimeline: UserSetting<Boolean>
+
+    /** Only prefetch Up Next episodes on mimi-hub while on Wi-Fi (off by default). */
+    val mimiPrefetchOnlyOnWifi: UserSetting<Boolean>
     val collectListeningStats: ReadWriteSetting<Boolean>
 
     fun setSelectPodcastsSortType(sortType: PodcastsSortType)
