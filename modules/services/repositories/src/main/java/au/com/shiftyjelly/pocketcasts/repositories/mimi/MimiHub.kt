@@ -147,7 +147,10 @@ class MimiHub @Inject constructor(
             .put("keep_source", !compresses(episode))
             .toString()
             .toRequestBody("application/json".toMediaType())
-        return call(Request.Builder().url("$base/v1/convert").post(body).build())
+        val request = Request.Builder().url("$base/v1/convert").post(body)
+        // the user's own key for the server's ad detection; the server holds it in memory only, for this episode
+        settings.mimiOpenRouterKey.value.trim().takeIf { it.isNotEmpty() }?.let { request.header("X-OpenRouter-Key", it) }
+        return call(request.build())
     }
 
     private fun call(request: Request): JSONObject? = try {
@@ -265,10 +268,16 @@ class MimiHub @Inject constructor(
     suspend fun prefetch(episode: PodcastEpisode) {
         if (!usesHub(episode) || isKnownReady(episode.uuid)) return
         val url = episode.downloadUrl?.takeIf { it.isNotBlank() } ?: return
-        when (status(episode.uuid)?.optString("state")) {
+        val status = status(episode.uuid)
+        when (status?.optString("state")) {
             "ready" -> {
                 markReady(episode.uuid)
                 if (transcribes(episode)) attachTranscript(episode.uuid)
+                // ads not found for want of a key (a server without one): again with the user's, once per session
+                val noAds = status.optString("segments_state") == "failed"
+                if (noAds && settings.mimiOpenRouterKey.value.isNotBlank() && prefetchRequested.add(episode.uuid)) {
+                    requestConversion(episode, url, priority = 1)
+                }
             }
 
             "missing" -> {
