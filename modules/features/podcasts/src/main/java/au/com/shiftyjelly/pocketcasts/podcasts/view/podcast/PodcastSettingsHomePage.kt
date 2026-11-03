@@ -67,6 +67,7 @@ internal fun PodcastSettingsHomePage(
     onChangePlaybackEffectsSettings: () -> Unit,
     onChangeMimiConversion: () -> Unit,
     onChangeMimiTranscription: () -> Unit,
+    onChangeMimiSkipAds: () -> Unit,
     onDecrementSkipFirst: () -> Unit,
     onIncrementSkipFirst: () -> Unit,
     onDecrementSkipLast: () -> Unit,
@@ -230,6 +231,24 @@ internal fun PodcastSettingsHomePage(
                 onClick = onChangeMimiTranscription,
             ),
         )
+        // only where this podcast gets ad marks at all (its "Transcripts & ad marks" on, or Default with that on)
+        val adMarks = when (uiState.mimi.transcription) {
+            MimiConversion.On -> true
+            MimiConversion.Off -> false
+            MimiConversion.Default -> uiState.mimi.transcribesByDefault
+        }
+        if (adMarks) {
+            SettingRow(
+                primaryText = stringResource(LR.string.podcast_settings_mimi_skip_ads),
+                secondaryText = mimiConversionLabel(uiState.mimi.skipAds, uiState.mimi.skipsAdsByDefault),
+                icon = painterResource(IR.drawable.ic_skip_forward),
+                iconTint = iconTint,
+                modifier = Modifier.clickable(
+                    role = Role.Button,
+                    onClick = onChangeMimiSkipAds,
+                ),
+            )
+        }
         Row(
             verticalAlignment = Alignment.Companion.CenterVertically,
             modifier = Modifier
@@ -389,6 +408,7 @@ private fun PodcastSettingsHomePagePreview(
             onChangePlaybackEffectsSettings = {},
             onChangeMimiConversion = {},
             onChangeMimiTranscription = {},
+            onChangeMimiSkipAds = {},
             onDecrementSkipFirst = {},
             onIncrementSkipFirst = {},
             onDecrementSkipLast = {},

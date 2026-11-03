@@ -210,6 +210,12 @@ class SettingsImpl @Inject constructor(
         sharedPrefs = sharedPreferences,
     )
 
+    override val mimiOpenRouterKey = UserSetting.StringPref(
+        sharedPrefKey = "mimiOpenRouterKey",
+        defaultValue = "",
+        sharedPrefs = sharedPreferences,
+    )
+
     override val stripTrackingRedirects = UserSetting.BoolPref(
         sharedPrefKey = "stripTrackingRedirects",
         defaultValue = true,
