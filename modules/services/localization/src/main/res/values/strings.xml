@@ -2036,6 +2036,27 @@
     <string name="podcast_settings_mimi_conversion" translatable="false">Compress with Mimi</string>
     <string name="podcast_settings_mimi_transcripts" translatable="false">Transcripts and ad marks</string>
     <string name="podcast_settings_mimi_skip_ads" translatable="false">Skip ads</string>
+    <string name="podcast_settings_mimi_backlog" translatable="false">Convert episodes on Mimi server</string>
+    <string name="podcast_settings_mimi_backlog_summary" translatable="false">All, the latest few, or a date range: many at once</string>
+    <string name="podcast_settings_mimi_backlog_running" translatable="false">Converting: %1$d of %2$d done</string>
+    <string name="podcast_settings_mimi_backlog_done" translatable="false">Converted %1$d of %2$d episodes</string>
+    <string name="podcast_settings_mimi_backlog_stopped" translatable="false">Stopped at %1$d of %2$d episodes</string>
+    <string name="mimi_backlog_all" translatable="false">All episodes</string>
+    <string name="mimi_backlog_latest" translatable="false">The latest</string>
+    <string name="mimi_backlog_latest_count" translatable="false">How many</string>
+    <string name="mimi_backlog_range" translatable="false">Published between</string>
+    <string name="mimi_backlog_from" translatable="false">From (YYYY-MM-DD)</string>
+    <string name="mimi_backlog_to" translatable="false">Before (YYYY-MM-DD)</string>
+    <string name="mimi_backlog_checking" translatable="false">Checking…</string>
+    <string name="mimi_backlog_unavailable" translatable="false">No episodes in that range, or the Mimi server can\'t do this (unreachable, or an older version).</string>
+    <string name="mimi_backlog_nothing" translatable="false">No episodes in that range.</string>
+    <string name="mimi_backlog_plan" translatable="false">%1$d episodes, %2$d not on the server yet (%3$s h of audio).</string>
+    <string name="mimi_backlog_plan_modal" translatable="false">Converted in bulk on Modal: about %1$d min and $%2$s.</string>
+    <string name="mimi_backlog_plan_local" translatable="false">Converted in the server\'s own queue.</string>
+    <string name="mimi_backlog_progress" translatable="false">%1$d of %2$d converted · %3$d with ad marks · %4$d with summaries</string>
+    <string name="mimi_backlog_convert" translatable="false">Convert</string>
+    <string name="mimi_backlog_stop" translatable="false">Stop</string>
+    <string name="mimi_backlog_close" translatable="false">Close</string>
     <string name="podcast_settings_mimi_conversion_default_on" translatable="false">Default (on)</string>
     <string name="podcast_settings_mimi_conversion_default_off" translatable="false">Default (off)</string>
     <string name="podcast_settings_mimi_conversion_on" translatable="false">On</string>
@@ -2062,6 +2083,7 @@
     <string name="mimi_send_episodes_plural" translatable="false">Send %1$d episodes</string>
     <string name="mimi_sent_to_server" translatable="false">Mimi server: %1$d queued, %2$d already processed</string>
     <string name="mimi_sent_to_server_not_using" translatable="false">%1$s, %2$d not set to use it</string>
+    <string name="mimi_sent_as_backlog" translatable="false">Mimi server: %1$d episodes queued as one batch (see the podcast\'s settings for progress)</string>
     <string name="mimi_send_to_server_unreachable" translatable="false">Couldn\'t send to the Mimi server</string>
     <string name="transcript_mimi_ad_break" translatable="false">Ad break</string>
     <string name="transcript_mimi_self_promotion" translatable="false">Self-promotion</string>

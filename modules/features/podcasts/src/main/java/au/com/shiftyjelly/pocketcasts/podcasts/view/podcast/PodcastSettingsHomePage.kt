@@ -47,6 +47,7 @@ import au.com.shiftyjelly.pocketcasts.models.type.SmartRules.PodcastsRule
 import au.com.shiftyjelly.pocketcasts.podcasts.R
 import au.com.shiftyjelly.pocketcasts.podcasts.viewmodel.PodcastSettingsViewModel
 import au.com.shiftyjelly.pocketcasts.repositories.mimi.MimiConversion
+import au.com.shiftyjelly.pocketcasts.repositories.mimi.MimiHub
 import au.com.shiftyjelly.pocketcasts.repositories.playlist.Playlist
 import au.com.shiftyjelly.pocketcasts.repositories.playlist.SmartPlaylistPreview
 import au.com.shiftyjelly.pocketcasts.ui.theme.Theme.ThemeType
@@ -68,6 +69,7 @@ internal fun PodcastSettingsHomePage(
     onChangeMimiConversion: () -> Unit,
     onChangeMimiTranscription: () -> Unit,
     onChangeMimiSkipAds: () -> Unit,
+    onConvertMimiBacklog: () -> Unit,
     onDecrementSkipFirst: () -> Unit,
     onIncrementSkipFirst: () -> Unit,
     onDecrementSkipLast: () -> Unit,
@@ -249,6 +251,18 @@ internal fun PodcastSettingsHomePage(
                 ),
             )
         }
+        if (uiState.mimi.hubEnabled) {
+            SettingRow(
+                primaryText = stringResource(LR.string.podcast_settings_mimi_backlog),
+                secondaryText = mimiBacklogLabel(uiState.mimi.backlog),
+                icon = painterResource(IR.drawable.ic_download),
+                iconTint = iconTint,
+                modifier = Modifier.clickable(
+                    role = Role.Button,
+                    onClick = onConvertMimiBacklog,
+                ),
+            )
+        }
         Row(
             verticalAlignment = Alignment.Companion.CenterVertically,
             modifier = Modifier
@@ -409,6 +423,7 @@ private fun PodcastSettingsHomePagePreview(
             onChangeMimiConversion = {},
             onChangeMimiTranscription = {},
             onChangeMimiSkipAds = {},
+            onConvertMimiBacklog = {},
             onDecrementSkipFirst = {},
             onIncrementSkipFirst = {},
             onDecrementSkipLast = {},
@@ -420,4 +435,12 @@ private fun PodcastSettingsHomePagePreview(
             modifier = Modifier.background(MaterialTheme.theme.colors.primaryUi02),
         )
     }
+}
+
+@Composable
+internal fun mimiBacklogLabel(job: MimiHub.BacklogJob?): String = when {
+    job == null -> stringResource(LR.string.podcast_settings_mimi_backlog_summary)
+    job.active -> stringResource(LR.string.podcast_settings_mimi_backlog_running, job.converted, job.total)
+    job.state == "done" -> stringResource(LR.string.podcast_settings_mimi_backlog_done, job.converted, job.total)
+    else -> stringResource(LR.string.podcast_settings_mimi_backlog_stopped, job.converted, job.total)
 }

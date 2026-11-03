@@ -26,6 +26,7 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
+import org.json.JSONArray
 import org.json.JSONObject
 import timber.log.Timber
 import au.com.shiftyjelly.pocketcasts.localization.R as LR
@@ -409,6 +410,97 @@ class MimiHub @Inject constructor(
         if (existing.none { it.url == ours.url }) transcriptDao.replaceAll(existing + ours)
         if (isSummariesEnabled) fetchSummaryAsync(uuid)
     }
+
+    // ---------- backlogs (the hub's /v1/backlog: many episodes at once, big ones in bulk on Modal) ----------
+
+    /** Which of a podcast's episodes: all (nothing set), the [latest] N, published on or after [after] and before
+     * [before] (YYYY-MM-DD). */
+    data class BacklogRange(val latest: Int? = null, val after: String? = null, val before: String? = null)
+
+    /** What a backlog would do: [new] of its [episodes] not on the server yet, [hours] of them, converted in bulk on
+     * Modal ([onModal]: about [usd] and [minutes]) or in the server's own queue. */
+    data class BacklogPlan(val episodes: Int, val new: Int, val hours: Double, val onModal: Boolean, val usd: Double, val minutes: Int?)
+
+    data class BacklogJob(
+        val id: String,
+        val state: String,
+        val total: Int,
+        val converted: Int,
+        val ads: Int,
+        val summaries: Int,
+        val onModal: Boolean,
+        val error: String?,
+    ) {
+        val active: Boolean get() = state !in setOf("done", "failed", "cancelled")
+    }
+
+    private fun postJson(path: String, body: JSONObject): JSONObject? = call(
+        Request.Builder().url("$base$path").post(body.toString().toRequestBody("application/json".toMediaType())).build(),
+    )
+
+    private fun JSONObject.toPlan() = if (has("episodes")) {
+        BacklogPlan(
+            episodes = optInt("episodes"),
+            new = optInt("new"),
+            hours = optDouble("hours", 0.0),
+            onModal = optString("mode") == "modal",
+            usd = optDouble("usd", 0.0),
+            minutes = if (isNull("minutes")) null else optInt("minutes"),
+        )
+    } else {
+        null
+    }
+
+    private fun JSONObject.toJob() = if (has("id")) {
+        BacklogJob(
+            id = optString("id"),
+            state = optString("state"),
+            total = optInt("total"),
+            converted = optInt("converted"),
+            ads = optInt("ads"),
+            summaries = optInt("summaries"),
+            onModal = optString("mode") == "modal",
+            error = optString("error").takeIf { it.isNotBlank() && it != "null" },
+        )
+    } else {
+        null
+    }
+
+    private fun backlogBody(podcastUuid: String, range: BacklogRange) = JSONObject().put("podcast_uuid", podcastUuid).apply {
+        range.latest?.let { put("latest", it) }
+        range.after?.takeIf { it.isNotBlank() }?.let { put("after", it) }
+        range.before?.takeIf { it.isNotBlank() }?.let { put("before", it) }
+    }
+
+    /** Blocking (Dispatchers.IO): what converting [range] of the podcast would do; null if the server can't say. */
+    fun previewBacklog(podcastUuid: String, range: BacklogRange): BacklogPlan? = postJson("/v1/backlog", backlogBody(podcastUuid, range).put("preview", true))?.toPlan()
+
+    /** Blocking: converts [range] of the podcast on the server; the job, or null. */
+    fun startBacklog(podcastUuid: String, range: BacklogRange): BacklogJob? = postJson("/v1/backlog", backlogBody(podcastUuid, range))?.toJob()
+
+    /** Blocking: [episodes] (e.g. a multi-select) as one backlog, so many go to the bulk path; the job, or null. */
+    fun startBacklog(episodes: List<PodcastEpisode>): BacklogJob? {
+        val list = JSONArray()
+        episodes.filter { usesHub(it) && !it.downloadUrl.isNullOrBlank() }.forEach {
+            list.put(JSONObject().put("id", it.uuid).put("url", it.downloadUrl).put("title", it.title).put("duration_s", it.duration))
+        }
+        if (list.length() == 0) return null
+        return postJson("/v1/backlog", JSONObject().put("episodes", list))?.toJob()
+    }
+
+    /** Blocking: the podcast's newest backlog job on this server, if any. */
+    fun backlogFor(podcastUuid: String): BacklogJob? = try {
+        client.newCall(Request.Builder().url("$base/v1/backlogs?podcast_uuid=$podcastUuid").build()).execute().use { r ->
+            if (!r.isSuccessful) return null
+            JSONArray(r.body.string()).optJSONObject(0)?.toJob()
+        }
+    } catch (e: Exception) {
+        Timber.i("mimi-hub backlogs: %s", e.message)
+        null
+    }
+
+    /** Blocking: stops a backlog (what's converted so far stays). */
+    fun cancelBacklog(id: String): BacklogJob? = postJson("/v1/backlogs/$id/cancel", JSONObject())?.toJob()
 
     // ---------- executive summaries (the hub's MIMI_HUB_SUMMARIZER: made after the ad marks) ----------
 

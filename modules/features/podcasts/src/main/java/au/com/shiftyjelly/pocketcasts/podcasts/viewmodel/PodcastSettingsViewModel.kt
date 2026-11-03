@@ -44,7 +44,9 @@ import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -70,12 +72,49 @@ class PodcastSettingsViewModel @AssistedInject constructor(
     private val mimiCompressionFlow = MutableStateFlow(mimiHub.compressionFor(podcastUuid))
     private val mimiTranscriptionFlow = MutableStateFlow(mimiHub.transcriptionFor(podcastUuid))
     private val mimiSkipAdsFlow = MutableStateFlow(mimiHub.skipAdsFor(podcastUuid))
+    private val mimiBacklogFlow = MutableStateFlow<MimiHub.BacklogJob?>(null)
+
+    /** This podcast's backlog job on the server: now, then every 10 s while one runs (the dialog calls it too). */
+    fun refreshMimiBacklog() {
+        if (!mimiHub.isEnabled) return
+        backlogRefresh?.cancel()
+        backlogRefresh = viewModelScope.launch(Dispatchers.IO) {
+            do {
+                mimiBacklogFlow.value = mimiHub.backlogFor(podcastUuid)
+                if (mimiBacklogFlow.value?.active != true) break
+                delay(10_000)
+            } while (true)
+        }
+    }
+
+    private var backlogRefresh: Job? = null
+
+    /** What converting [range] of this podcast on the Mimi server would do (null: the server can't say). */
+    suspend fun previewMimiBacklog(range: MimiHub.BacklogRange): MimiHub.BacklogPlan? = withContext(Dispatchers.IO) {
+        mimiHub.previewBacklog(podcastUuid, range)
+    }
+
+    fun startMimiBacklog(range: MimiHub.BacklogRange) {
+        viewModelScope.launch(Dispatchers.IO) {
+            mimiHub.startBacklog(podcastUuid, range)?.let { mimiBacklogFlow.value = it }
+            refreshMimiBacklog()
+        }
+    }
+
+    fun cancelMimiBacklog() {
+        val id = mimiBacklogFlow.value?.id ?: return
+        viewModelScope.launch(Dispatchers.IO) {
+            mimiHub.cancelBacklog(id)
+            refreshMimiBacklog()
+        }
+    }
     private val playlistsFlow = MutableStateFlow<List<SmartPlaylistPreview>?>(null)
 
     init {
         viewModelScope.launch {
             podcastFlow.value = podcastManager.findPodcastByUuid(podcastUuid)
         }
+        refreshMimiBacklog()
         viewModelScope.launch {
             playlistsFlow.value = playlistManager.playlistPreviewsFlow()
                 .first()
@@ -110,10 +149,13 @@ class PodcastSettingsViewModel @AssistedInject constructor(
             },
             mimiSkipAdsFlow,
             settings.mimiSkipAds.flow,
-        ) { mimi, skipAds, skipsAdsByDefault ->
+            mimiBacklogFlow,
+        ) { mimi, skipAds, skipsAdsByDefault, backlog ->
             mimi.copy(
                 skipAds = skipAds,
                 skipsAdsByDefault = skipsAdsByDefault,
+                hubEnabled = mimiHub.isEnabled,
+                backlog = backlog,
             )
         },
     ) { podcast, playlists, upNextLimit, isGlobalAutoDownloadEnabled, mimi ->
@@ -501,6 +543,9 @@ class PodcastSettingsViewModel @AssistedInject constructor(
         val transcribesByDefault: Boolean = true,
         val skipAds: MimiConversion = MimiConversion.Default,
         val skipsAdsByDefault: Boolean = true,
+        val hubEnabled: Boolean = false,
+        /** This podcast's newest backlog on the Mimi server (Convert episodes on Mimi server). */
+        val backlog: MimiHub.BacklogJob? = null,
     )
 
     @AssistedFactory

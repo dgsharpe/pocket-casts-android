@@ -100,6 +100,7 @@ class PodcastSettingsFragment :
                 onChangeMimiConversion = { showMimiConversionDialog(MimiConversionFragment.Target.Compression) },
                 onChangeMimiTranscription = { showMimiConversionDialog(MimiConversionFragment.Target.Transcripts) },
                 onChangeMimiSkipAds = { showMimiConversionDialog(MimiConversionFragment.Target.SkipAds) },
+                onConvertMimiBacklog = ::showMimiBacklogDialog,
                 onDecrementPlaybackSpeed = viewModel::decrementPlaybackSpeed,
                 onIncrementPlaybackSpeed = viewModel::incrementPlaybackSpeed,
                 onChangeTrimMode = viewModel::changeTrimMode,
@@ -134,6 +135,12 @@ class PodcastSettingsFragment :
             return
         }
         MimiConversionFragment.newInstance(target).show(childFragmentManager, "podcast-mimi")
+    }
+
+    private fun showMimiBacklogDialog() {
+        if (viewModel.uiState.value == null || childFragmentManager.findFragmentByTag("podcast-mimi-backlog") != null) return
+        viewModel.refreshMimiBacklog()
+        MimiBacklogFragment.newInstance().show(childFragmentManager, "podcast-mimi-backlog")
     }
 
     private fun showUpNextPositionDialog() {

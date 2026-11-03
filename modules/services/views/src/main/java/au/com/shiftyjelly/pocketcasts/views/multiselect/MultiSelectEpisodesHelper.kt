@@ -349,6 +349,18 @@ class MultiSelectEpisodesHelper @Inject constructor(
         closeMultiSelect()
         if (list.isEmpty()) return
         showSnackBar(resources.getStringPlural(list.size, LR.string.mimi_sending_to_server_singular, LR.string.mimi_sending_to_server))
+        if (list.size > SEND_WARNING_LIMIT) { // as one backlog: the hub converts a big one in bulk on Modal
+            applicationScope.launch(Dispatchers.IO) {
+                val job = mimiHub.startBacklog(list)
+                val text = if (job == null) {
+                    resources.getString(LR.string.mimi_send_to_server_unreachable)
+                } else {
+                    resources.getString(LR.string.mimi_sent_as_backlog, job.total)
+                }
+                withContext(Dispatchers.Main) { showSnackBar(text) }
+            }
+            return
+        }
         applicationScope.launch(Dispatchers.IO) {
             val counts = mutableMapOf<MimiHub.SendResult, Int>()
             for (episode in list) {
