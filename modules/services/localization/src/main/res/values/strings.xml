@@ -2035,6 +2035,7 @@
     <string name="settings_advanced_mimi_transcribe_summary" translatable="false">The Mimi server\'s transcripts with speakers, and its ad and self-promotion marks. Without compression, the episode\'s original audio comes from the Mimi server so the timings match. Default for every podcast.</string>
     <string name="podcast_settings_mimi_conversion" translatable="false">Compress with Mimi</string>
     <string name="podcast_settings_mimi_transcripts" translatable="false">Transcripts and ad marks</string>
+    <string name="podcast_settings_mimi_skip_ads" translatable="false">Skip ads</string>
     <string name="podcast_settings_mimi_conversion_default_on" translatable="false">Default (on)</string>
     <string name="podcast_settings_mimi_conversion_default_off" translatable="false">Default (off)</string>
     <string name="podcast_settings_mimi_conversion_on" translatable="false">On</string>
@@ -2047,13 +2048,27 @@
     <string name="settings_advanced_mimi_skip_promos_summary" translatable="false">Also jump over the show\'s own plugs: memberships, tours and events, merch, newsletters.</string>
     <string name="settings_advanced_mimi_download_on_stream" translatable="false">Download when streaming</string>
     <string name="settings_advanced_mimi_download_on_stream_summary" translatable="false">Playing an episode as .mimi (about 2 MB an hour) also downloads it, so it keeps playing and seeking without a connection.</string>
+    <string name="settings_advanced_mimi_prefetch_wifi_only" translatable="false">Prefetch only on Wi-Fi</string>
+    <string name="settings_advanced_mimi_prefetch_wifi_only_summary" translatable="false">Only prepare Up Next episodes while connected to Wi-Fi to save mobile data and battery.</string>
     <string name="settings_advanced_mimi_trim_timeline" translatable="false">Trim skipped segments</string>
     <string name="settings_advanced_mimi_trim_timeline_summary" translatable="false">Leave the ads and self-promotion you skip out of the seek bar, so scrubbing and the skip buttons never land in them, and fold them to one line in the transcript. Otherwise they are highlighted on the seek bar.</string>
+    <string name="send_to_mimi_server" translatable="false">Send to Mimi server</string>
+    <string name="mimi_sending_to_server" translatable="false">Sending %1$d episodes to the Mimi server…</string>
+    <string name="mimi_sending_to_server_singular" translatable="false">Sending 1 episode to the Mimi server…</string>
+    <string name="mimi_send_to_server_title" translatable="false">Send to the Mimi server?</string>
+    <string name="mimi_send_to_server_summary" translatable="false">Each episode is converted, transcribed and checked for ads. On a server billed by the minute (such as Modal), that costs money.</string>
+    <string name="mimi_send_episodes_singular" translatable="false">Send 1 episode</string>
+    <string name="mimi_send_episodes_plural" translatable="false">Send %1$d episodes</string>
+    <string name="mimi_sent_to_server" translatable="false">Mimi server: %1$d queued, %2$d already processed</string>
+    <string name="mimi_sent_to_server_not_using" translatable="false">%1$s, %2$d not set to use it</string>
+    <string name="mimi_send_to_server_unreachable" translatable="false">Couldn\'t send to the Mimi server</string>
     <string name="transcript_mimi_ad_break" translatable="false">Ad break</string>
     <string name="transcript_mimi_self_promotion" translatable="false">Self-promotion</string>
     <string name="player_mimi_skipped_ad" translatable="false">Skipped ad break (%d s)</string>
     <string name="player_mimi_skipped_promo" translatable="false">Skipped self-promotion (%d s)</string>
     <string name="settings_advanced_mimi_hub_url" translatable="false">Mimi converter URL</string>
+    <string name="settings_advanced_mimi_openrouter_key" translatable="false">OpenRouter key for ad detection</string>
+    <string name="settings_advanced_mimi_openrouter_key_none" translatable="false">None: the Mimi server\'s own. A server without one (e.g. on Modal) uses this key, sent with each conversion and kept only in its memory. Save blank to remove.</string>
     <string name="settings_advanced_mimi_hub_url_off" translatable="false">Off. Set a mimi-hub URL to download and stream episodes as compact .mimi files with transcripts.</string>
     <string name="settings_advanced_cache_entire_playing_episode">Cache playing episode</string>
     <string name="settings_advanced_cache_entire_playing_episode_summary">Entire playing episode is temporarily cached to minimize streaming.</string>

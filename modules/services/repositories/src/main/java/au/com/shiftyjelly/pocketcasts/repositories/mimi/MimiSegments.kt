@@ -118,7 +118,7 @@ class MimiSegments @Inject constructor(
         if (!isPlayingMimi(episode)) return null
         val segments = get(episode.uuid)?.takeIf { it.isNotEmpty() } ?: return null
         val cuts = if (settings.mimiTrimTimeline.value) {
-            val skipAds = settings.mimiSkipAds.value
+            val skipAds = (episode as? PodcastEpisode)?.let { mimiHub.skipsAds(it) } ?: settings.mimiSkipAds.value
             val skipPromos = settings.mimiSkipPromos.value
             segments.filter { if (it.isAd) skipAds else skipPromos }
         } else {
@@ -131,9 +131,9 @@ class MimiSegments @Inject constructor(
      * Segments to fold in [uuid]'s mimi-hub transcript: the kinds being skipped, when "Trim skipped segments" is on.
      * Hub transcripts are on the `.mimi` timeline, so this doesn't depend on what is playing.
      */
-    fun transcriptCuts(uuid: String): List<Segment> {
+    fun transcriptCuts(uuid: String, podcastUuid: String? = null): List<Segment> {
         if (!settings.mimiTrimTimeline.value) return emptyList()
-        val skipAds = settings.mimiSkipAds.value
+        val skipAds = podcastUuid?.takeIf { it.isNotEmpty() }?.let { mimiHub.skipsAdsPodcast(it) } ?: settings.mimiSkipAds.value
         val skipPromos = settings.mimiSkipPromos.value
         return get(uuid).orEmpty().filter { if (it.isAd) skipAds else skipPromos }
     }
@@ -164,7 +164,7 @@ class MimiSegments @Inject constructor(
         }
         lastUuid = episode.uuid
         lastPositionMs = positionMs
-        val skipAds = settings.mimiSkipAds.value
+        val skipAds = (episode as? PodcastEpisode)?.let { mimiHub.skipsAds(it) } ?: settings.mimiSkipAds.value
         val skipPromos = settings.mimiSkipPromos.value
         if (!skipAds && !skipPromos) return null
         if (positionMs < previous || positionMs - previous > MAX_TICK_MS) return null // a seek

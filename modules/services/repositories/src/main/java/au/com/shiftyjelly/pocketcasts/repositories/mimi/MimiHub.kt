@@ -63,7 +63,19 @@ class MimiHub @Inject constructor(
 
     fun vttUrl(uuid: String) = "$base/v1/episodes/$uuid.vtt"
 
-    fun isKnownReady(uuid: String): Boolean = prefs.getBoolean(uuid, false)
+    fun isKnownReady(uuid: String): Boolean {
+        forOtherServer()
+        return prefs.getBoolean(uuid, false)
+    }
+
+    /** The ready flags are the current server's: after a change of server URL (another server's library, e.g.
+     * halo to Modal) they start over, so its episodes are requested from the new one. Not the "src:" flags: those
+     * describe downloads already on the phone. */
+    private fun forOtherServer() {
+        if (prefs.getString(SERVER_KEY, null) == base) return
+        val stale = prefs.all.keys.filter { !it.startsWith("src:") }
+        prefs.edit().apply { stale.forEach { remove(it) } }.putString(SERVER_KEY, base).apply()
+    }
 
     // Per-podcast choices (podcast settings), each Default / On / Off; Default follows the global setting.
     // Compression: play the hub's .mimi. Transcripts & ad marks: the hub's VTT and ad / self-promo segments.
@@ -98,6 +110,14 @@ class MimiHub @Inject constructor(
     fun compresses(episode: PodcastEpisode) = compressesPodcast(episode.podcastUuid)
 
     fun transcribes(episode: PodcastEpisode) = transcribesPodcast(episode.podcastUuid)
+
+    fun skipAdsFor(podcastUuid: String) = choice("$podcastUuid:skip_ads")
+
+    fun setSkipAds(podcastUuid: String, value: MimiConversion) = setChoice("$podcastUuid:skip_ads", value)
+
+    fun skipsAdsPodcast(podcastUuid: String): Boolean = isEnabled && skipAdsFor(podcastUuid).resolve(settings.mimiSkipAds.value)
+
+    fun skipsAds(episode: PodcastEpisode) = skipsAdsPodcast(episode.podcastUuid)
 
     /** The hub handles [episode] at all. Transcripts without compression: the hub keeps the original it processed
      * and serves that ([srcUrl]), since a fresh copy from the publisher can carry other (dynamic) ads. */
@@ -152,7 +172,10 @@ class MimiHub @Inject constructor(
             .put("keep_source", !compresses(episode))
             .toString()
             .toRequestBody("application/json".toMediaType())
-        return call(Request.Builder().url("$base/v1/convert").post(body).build())
+        val request = Request.Builder().url("$base/v1/convert").post(body)
+        // the user's own key for the server's ad detection; the server holds it in memory only, for this episode
+        settings.mimiOpenRouterKey.value.trim().takeIf { it.isNotEmpty() }?.let { request.header("X-OpenRouter-Key", it) }
+        return call(request.build())
     }
 
     private fun call(request: Request): JSONObject? = try {
@@ -220,6 +243,18 @@ class MimiHub @Inject constructor(
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val awaitingTranscript = ConcurrentHashMap.newKeySet<String>()
 
+    @Volatile private var lastWarm = 0L
+
+    /** Wakes a hub that scales to zero (hub/modal_app.py) when the app comes to the foreground, so its models
+     * load while an episode is picked. At most every 15 min: each wake keeps a billed GPU up for a minute or two,
+     * and switching apps while listening mustn't keep it up. A hub without POST /v1/warm answers 404: no-op. */
+    fun warm() {
+        val now = System.currentTimeMillis()
+        if (!isEnabled || now - lastWarm < 15 * 60_000L) return
+        lastWarm = now
+        scope.launch { call(Request.Builder().url("$base/v1/warm").post(ByteArray(0).toRequestBody()).build()) }
+    }
+
     /** Polls the hub in the background and attaches its transcript once the episode is fully ready. */
     fun attachTranscriptWhenReady(uuid: String) {
         if (isKnownReady(uuid)) {
@@ -252,27 +287,42 @@ class MimiHub @Inject constructor(
 
     /**
      * For queued episodes (MimiQueuePrefetcher): makes sure the hub has, or is making, [episode] at normal
-     * priority, and attaches its transcript once ready. A failed conversion is re-requested at most once
-     * per app session. Blocking network calls; call from Dispatchers.IO.
+     * priority, and attaches its transcript once ready. Returns true if the conversion is pending / in flight.
+     * A failed conversion is re-requested at most once per app session. Blocking network calls; call from Dispatchers.IO.
      */
-    suspend fun prefetch(episode: PodcastEpisode) {
-        if (!usesHub(episode) || isKnownReady(episode.uuid)) return
-        val url = episode.downloadUrl?.takeIf { it.isNotBlank() } ?: return
-        when (status(episode.uuid)?.optString("state")) {
+    suspend fun prefetch(episode: PodcastEpisode): Boolean {
+        if (!usesHub(episode) || isKnownReady(episode.uuid)) return false
+        val url = episode.downloadUrl?.takeIf { it.isNotBlank() } ?: return false
+        val status = status(episode.uuid) ?: return false
+        return when (status.optString("state")) {
             "ready" -> {
                 markReady(episode.uuid)
                 if (transcribes(episode)) attachTranscript(episode.uuid)
+                // ads not found for want of a key (a server without one): again with the user's, once per session
+                val noAds = status.optString("segments_state") == "failed"
+                if (noAds && settings.mimiOpenRouterKey.value.isNotBlank() && prefetchRequested.add(episode.uuid)) {
+                    requestConversion(episode, url, priority = 1)
+                }
+                false
             }
 
             "missing" -> {
                 prefetchRequested.add(episode.uuid)
                 requestConversion(episode, url, priority = 1)
+                true
             }
 
             // retried once per session; if this session's own request failed, leave it
-            "failed" -> if (prefetchRequested.add(episode.uuid)) requestConversion(episode, url, priority = 1)
+            "failed" -> {
+                if (prefetchRequested.add(episode.uuid)) {
+                    requestConversion(episode, url, priority = 1)
+                    true
+                } else {
+                    false
+                }
+            }
 
-            else -> Unit // unreachable, or queued / converting
+            else -> true // queued, starting, downloading, encoding, transcribing
         }
     }
 
@@ -319,7 +369,26 @@ class MimiHub @Inject constructor(
         cleanUrl(original).takeIf { it != original }?.let { StreamOverride(it, null, isMimi = false) }
     }
 
+    enum class SendResult { Queued, Processed, NotUsingHub, Unreachable }
+
+    /**
+     * Multi-select "Send to Mimi server": queues [episode] on the hub at normal priority. The hub ignores episodes it
+     * already has (queued, in progress or done) and re-queues failed ones. Blocking; call from Dispatchers.IO.
+     */
+    fun sendToServer(episode: PodcastEpisode): SendResult {
+        if (!usesHub(episode)) return SendResult.NotUsingHub
+        // (with the user's OpenRouter key set, asked anyway: the hub redoes ad detection that failed for want of one)
+        if (isKnownReady(episode.uuid) && settings.mimiOpenRouterKey.value.isBlank()) return SendResult.Processed
+        val url = episode.downloadUrl?.takeIf { it.isNotBlank() } ?: return SendResult.NotUsingHub
+        val r = requestConversion(episode, url, priority = 1) ?: return SendResult.Unreachable
+        if (r.optString("state") != "ready") return SendResult.Queued
+        markReady(episode.uuid)
+        if (transcribes(episode)) scope.launch { attachTranscript(episode.uuid) }
+        return SendResult.Processed
+    }
+
     private fun markReady(uuid: String) {
+        forOtherServer()
         prefs.edit().putBoolean(uuid, true).apply()
     }
 
@@ -427,6 +496,7 @@ fun summaryUrl(uuid: String) = "$base/v1/episodes/$uuid.summary.json"
 
     companion object {
         const val MIME_TYPE = "audio/x-mimi"
+        private const val SERVER_KEY = "server:url" // whose ready flags these are
         private val HUB_VTT = Regex(".*/v1/episodes/[A-Za-z0-9_-]+\\.vtt$")
 
         /**

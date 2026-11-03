@@ -109,6 +109,13 @@ sealed class MultiSelectEpisodeAction(
         iconRes = IR.drawable.ic_star,
         analyticsValue = "star",
     )
+    object SendToMimiServer : MultiSelectEpisodeAction(
+        groupId = "mimi_server",
+        actionId = R.id.menu_send_to_mimi_server,
+        title = LR.string.send_to_mimi_server,
+        iconRes = IR.drawable.ic_transcript_24,
+        analyticsValue = "send_to_mimi_server",
+    )
     object RemoveListeningHistory : MultiSelectEpisodeAction(
         groupId = "listening_history",
         actionId = UR.id.menu_remove_listening_history,
@@ -125,7 +132,7 @@ sealed class MultiSelectEpisodeAction(
     )
 
     companion object {
-        private val STANDARD = listOf(Download, Archive, MarkAsPlayed, PlayNext, AddToPlaylist, PlayLast, Star, Share, RemoveListeningHistory)
+        private val STANDARD = listOf(Download, Archive, MarkAsPlayed, PlayNext, AddToPlaylist, PlayLast, Star, Share, RemoveListeningHistory, SendToMimiServer)
         private val ALL = STANDARD + listOf(DeleteDownload, DeleteUserEpisode, MarkAsUnplayed, Unstar, Unarchive)
         private val STANDARD_BY_GROUP_ID = STANDARD.associateBy { it.groupId }
         val ALL_BY_ACTION_ID = ALL.associateBy { it.actionId }
@@ -189,6 +196,8 @@ sealed class MultiSelectEpisodeAction(
                 }
 
                 PlayNext.groupId -> return PlayNext
+
+                SendToMimiServer.groupId -> if (selected.any { it is PodcastEpisode }) return SendToMimiServer
 
                 PlayLast.groupId -> return PlayLast
 

@@ -210,6 +210,12 @@ class SettingsImpl @Inject constructor(
         sharedPrefs = sharedPreferences,
     )
 
+    override val mimiOpenRouterKey = UserSetting.StringPref(
+        sharedPrefKey = "mimiOpenRouterKey",
+        defaultValue = "",
+        sharedPrefs = sharedPreferences,
+    )
+
     override val stripTrackingRedirects = UserSetting.BoolPref(
         sharedPrefKey = "stripTrackingRedirects",
         defaultValue = true,
@@ -255,6 +261,12 @@ class SettingsImpl @Inject constructor(
     override val mimiTrimTimeline = UserSetting.BoolPref(
         sharedPrefKey = "mimiTrimTimeline",
         defaultValue = false,
+        sharedPrefs = sharedPreferences,
+    )
+
+    override val mimiPrefetchOnlyOnWifi = UserSetting.BoolPref(
+        sharedPrefKey = "mimiPrefetchOnlyOnWifi",
+        defaultValue = false, // (off: the prefetch only sends small requests; the server downloads the audio)
         sharedPrefs = sharedPreferences,
     )
 

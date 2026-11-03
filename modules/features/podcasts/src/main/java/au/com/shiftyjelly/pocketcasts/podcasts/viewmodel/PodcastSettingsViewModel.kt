@@ -69,6 +69,7 @@ class PodcastSettingsViewModel @AssistedInject constructor(
     private val podcastFlow = MutableStateFlow<Podcast?>(null)
     private val mimiCompressionFlow = MutableStateFlow(mimiHub.compressionFor(podcastUuid))
     private val mimiTranscriptionFlow = MutableStateFlow(mimiHub.transcriptionFor(podcastUuid))
+    private val mimiSkipAdsFlow = MutableStateFlow(mimiHub.skipAdsFor(podcastUuid))
     private val playlistsFlow = MutableStateFlow<List<SmartPlaylistPreview>?>(null)
 
     init {
@@ -94,12 +95,27 @@ class PodcastSettingsViewModel @AssistedInject constructor(
         settings.autoAddUpNextLimit.flow,
         settings.autoDownloadNewEpisodes.flow.map { it == Podcast.AUTO_DOWNLOAD_NEW_EPISODES },
         combine(
-            mimiCompressionFlow,
-            settings.mimiConvertByDefault.flow,
-            mimiTranscriptionFlow,
-            settings.mimiTranscribeByDefault.flow,
-            ::MimiChoices,
-        ),
+            combine(
+                mimiCompressionFlow,
+                settings.mimiConvertByDefault.flow,
+                mimiTranscriptionFlow,
+                settings.mimiTranscribeByDefault.flow,
+            ) { compression, compressesByDefault, transcription, transcribesByDefault ->
+                MimiChoices(
+                    compression = compression,
+                    compressesByDefault = compressesByDefault,
+                    transcription = transcription,
+                    transcribesByDefault = transcribesByDefault,
+                )
+            },
+            mimiSkipAdsFlow,
+            settings.mimiSkipAds.flow,
+        ) { mimi, skipAds, skipsAdsByDefault ->
+            mimi.copy(
+                skipAds = skipAds,
+                skipsAdsByDefault = skipsAdsByDefault,
+            )
+        },
     ) { podcast, playlists, upNextLimit, isGlobalAutoDownloadEnabled, mimi ->
         if (podcast != null && playlists != null) {
             UiState(podcast, playlists, upNextLimit, isGlobalAutoDownloadEnabled, mimi)
@@ -164,6 +180,11 @@ class PodcastSettingsViewModel @AssistedInject constructor(
     fun changeMimiTranscription(value: MimiConversion) {
         mimiHub.setTranscription(podcastUuid, value)
         mimiTranscriptionFlow.value = value
+    }
+
+    fun changeMimiSkipAds(value: MimiConversion) {
+        mimiHub.setSkipAds(podcastUuid, value)
+        mimiSkipAdsFlow.value = value
     }
 
     fun changeAddToUpNext(mode: Podcast.AutoAddUpNext) {
@@ -478,6 +499,8 @@ class PodcastSettingsViewModel @AssistedInject constructor(
         val compressesByDefault: Boolean = true,
         val transcription: MimiConversion = MimiConversion.Default,
         val transcribesByDefault: Boolean = true,
+        val skipAds: MimiConversion = MimiConversion.Default,
+        val skipsAdsByDefault: Boolean = true,
     )
 
     @AssistedFactory

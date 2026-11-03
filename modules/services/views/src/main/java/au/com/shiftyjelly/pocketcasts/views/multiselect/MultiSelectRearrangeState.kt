@@ -35,6 +35,9 @@ internal class MultiSelectRearrangeState(
         if (!shouldShowRemoveListeningHistory) {
             actions.removeAll { it is MultiSelectEpisodeAction.RemoveListeningHistory }
         }
+        if (settings.mimiHubUrl.value.isBlank()) { // no Mimi server set
+            actions.removeAll { it is MultiSelectEpisodeAction.SendToMimiServer }
+        }
         actions.add(0, shortcutTitle)
         actions.add(maxToolbarIcons + 1, overflowTitle)
         _items.value = actions.toList()

@@ -109,9 +109,19 @@ class AdvancedSettingsViewModel @Inject constructor(
             settings.mimiDownloadOnStream.set(it, updateModifiedAt = false)
             updateMimiState()
         },
+        prefetchOnlyOnWifiChecked = settings.mimiPrefetchOnlyOnWifi.value,
+        onPrefetchOnlyOnWifiChange = {
+            settings.mimiPrefetchOnlyOnWifi.set(it, updateModifiedAt = false)
+            updateMimiState()
+        },
         hubUrl = settings.mimiHubUrl.value,
         onHubUrlChange = {
             settings.mimiHubUrl.set(it.trim(), updateModifiedAt = false)
+            updateMimiState()
+        },
+        openRouterKeyHint = settings.mimiOpenRouterKey.value.takeIf { it.isNotBlank() }?.let { "…" + it.takeLast(4) }.orEmpty(),
+        onOpenRouterKeyChange = {
+            settings.mimiOpenRouterKey.set(it.trim(), updateModifiedAt = false)
             updateMimiState()
         },
     )
@@ -180,8 +190,13 @@ class AdvancedSettingsViewModel @Inject constructor(
             val onTrimTimelineChange: (Boolean) -> Unit,
             val downloadOnStreamChecked: Boolean,
             val onDownloadOnStreamChange: (Boolean) -> Unit,
+            val prefetchOnlyOnWifiChecked: Boolean,
+            val onPrefetchOnlyOnWifiChange: (Boolean) -> Unit,
             val hubUrl: String,
             val onHubUrlChange: (String) -> Unit,
+            /** The key's last characters ("…ab12"), blank if none; the key itself isn't shown. */
+            val openRouterKeyHint: String,
+            val onOpenRouterKeyChange: (String) -> Unit,
         )
 
         data class BackgroundSyncOnMeteredState(
