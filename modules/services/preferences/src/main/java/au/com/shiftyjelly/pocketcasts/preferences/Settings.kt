@@ -327,6 +327,10 @@ interface Settings {
     /** Base URL of mimi-hub (episode conversion to `.mimi` + transcripts); blank disables it. */
     val mimiHubUrl: UserSetting<String>
 
+    /** The user's own OpenRouter API key, sent with conversion requests for the server's ad detection (a server
+     * without one of its own, e.g. on Modal); blank: the server's. */
+    val mimiOpenRouterKey: UserSetting<String>
+
     /** Fetch episodes straight from their host, skipping ad/analytics prefix redirects (Podtrac, Podscribe…). */
     val stripTrackingRedirects: UserSetting<Boolean>
 
