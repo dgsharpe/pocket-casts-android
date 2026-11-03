@@ -363,7 +363,8 @@ class MimiHub @Inject constructor(
      */
     fun sendToServer(episode: PodcastEpisode): SendResult {
         if (!usesHub(episode)) return SendResult.NotUsingHub
-        if (isKnownReady(episode.uuid)) return SendResult.Processed
+        // (with the user's OpenRouter key set, asked anyway: the hub redoes ad detection that failed for want of one)
+        if (isKnownReady(episode.uuid) && settings.mimiOpenRouterKey.value.isBlank()) return SendResult.Processed
         val url = episode.downloadUrl?.takeIf { it.isNotBlank() } ?: return SendResult.NotUsingHub
         val r = requestConversion(episode, url, priority = 1) ?: return SendResult.Unreachable
         if (r.optString("state") != "ready") return SendResult.Queued

@@ -54,6 +54,7 @@ import au.com.shiftyjelly.pocketcasts.localization.R as LR
 import au.com.shiftyjelly.pocketcasts.ui.R as UR
 
 private const val WARNING_LIMIT = 3
+private const val SEND_WARNING_LIMIT = 10 // each a conversion and an ad pass: on a server billed by the minute, money
 class MultiSelectEpisodesHelper @Inject constructor(
     val episodeManager: EpisodeManager,
     val userEpisodeManager: UserEpisodeManager,
@@ -167,7 +168,7 @@ class MultiSelectEpisodesHelper @Inject constructor(
             }
 
             R.id.menu_send_to_mimi_server -> {
-                sendToMimiServer(resources = resources)
+                sendToMimiServer(resources = resources, fragmentManager = fragmentManager)
                 true
             }
 
@@ -329,11 +330,25 @@ class MultiSelectEpisodesHelper @Inject constructor(
         }
     }
 
-    private fun sendToMimiServer(resources: Resources) {
+    private fun sendToMimiServer(shownWarning: Boolean = false, resources: Resources, fragmentManager: FragmentManager) {
         val list = selectedSet.filterIsInstance<PodcastEpisode>().toList()
+        if (!shownWarning && list.size > SEND_WARNING_LIMIT) {
+            ConfirmationDialog()
+                .setTitle(resources.getString(LR.string.mimi_send_to_server_title))
+                .setSummary(resources.getString(LR.string.mimi_send_to_server_summary))
+                .setIconId(IR.drawable.ic_transcript_24)
+                .setButtonType(
+                    ConfirmationDialog.ButtonType.Normal(
+                        resources.getStringPlural(list.size, LR.string.mimi_send_episodes_singular, LR.string.mimi_send_episodes_plural),
+                    ),
+                )
+                .setOnConfirm { sendToMimiServer(shownWarning = true, resources = resources, fragmentManager = fragmentManager) }
+                .show(fragmentManager, "confirm_send_to_mimi_server")
+            return
+        }
         closeMultiSelect()
         if (list.isEmpty()) return
-        showSnackBar(resources.getString(LR.string.mimi_sending_to_server, list.size))
+        showSnackBar(resources.getStringPlural(list.size, LR.string.mimi_sending_to_server_singular, LR.string.mimi_sending_to_server))
         applicationScope.launch(Dispatchers.IO) {
             val counts = mutableMapOf<MimiHub.SendResult, Int>()
             for (episode in list) {
