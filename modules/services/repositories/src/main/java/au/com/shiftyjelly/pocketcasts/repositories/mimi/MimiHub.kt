@@ -58,7 +58,19 @@ class MimiHub @Inject constructor(
 
     fun vttUrl(uuid: String) = "$base/v1/episodes/$uuid.vtt"
 
-    fun isKnownReady(uuid: String): Boolean = prefs.getBoolean(uuid, false)
+    fun isKnownReady(uuid: String): Boolean {
+        forOtherServer()
+        return prefs.getBoolean(uuid, false)
+    }
+
+    /** The ready flags are the current server's: after a change of server URL (another server's library, e.g.
+     * halo to Modal) they start over, so its episodes are requested from the new one. Not the "src:" flags: those
+     * describe downloads already on the phone. */
+    private fun forOtherServer() {
+        if (prefs.getString(SERVER_KEY, null) == base) return
+        val stale = prefs.all.keys.filter { !it.startsWith("src:") }
+        prefs.edit().apply { stale.forEach { remove(it) } }.putString(SERVER_KEY, base).apply()
+    }
 
     // Per-podcast choices (podcast settings), each Default / On / Off; Default follows the global setting.
     // Compression: play the hub's .mimi. Transcripts & ad marks: the hub's VTT and ad / self-promo segments.
@@ -336,6 +348,7 @@ class MimiHub @Inject constructor(
     }
 
     private fun markReady(uuid: String) {
+        forOtherServer()
         prefs.edit().putBoolean(uuid, true).apply()
     }
 
@@ -357,6 +370,7 @@ class MimiHub @Inject constructor(
 
     companion object {
         const val MIME_TYPE = "audio/x-mimi"
+        private const val SERVER_KEY = "server:url" // whose ready flags these are
         private val HUB_VTT = Regex(".*/v1/episodes/[A-Za-z0-9_-]+\\.vtt$")
 
         /**
