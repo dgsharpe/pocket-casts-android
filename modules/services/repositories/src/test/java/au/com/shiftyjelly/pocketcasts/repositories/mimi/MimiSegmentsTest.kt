@@ -42,6 +42,8 @@ class MimiSegmentsTest {
                 {"start": 1000.0, "end": 1012.0, "kind": "promo", "label": "membership"}]}""",
         )
         whenever(mimiHub.transcribes(any())).thenReturn(true)
+        whenever(mimiHub.skipsAds(any())).thenReturn(true)
+        whenever(mimiHub.skipsAdsPodcast(any())).thenReturn(true)
         whenever(settings.mimiSkipAds).thenReturn(UserSetting.Mock(true, mock()))
         whenever(settings.mimiSkipPromos).thenReturn(UserSetting.Mock(false, mock()))
         segments = MimiSegments(context, settings, mimiHub)
@@ -76,5 +78,14 @@ class MimiSegmentsTest {
         val original = episode.copy(downloadedFilePath = "/somewhere/e1.mp3")
         segments.toSkip(original, 599_000)
         assertNull(segments.toSkip(original, 600_200))
+    }
+
+    @Test
+    fun `respects per-podcast ad skip override`() {
+        whenever(mimiHub.skipsAds(any())).thenReturn(false)
+        assertEquals(listOf(null, null, null), play(598_000, 599_000, 600_200))
+
+        whenever(mimiHub.skipsAds(any())).thenReturn(true)
+        assertEquals(listOf(null, null, "mid-roll"), play(598_000, 599_000, 600_200))
     }
 }
