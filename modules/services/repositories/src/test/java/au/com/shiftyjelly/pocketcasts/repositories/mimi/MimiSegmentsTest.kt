@@ -57,6 +57,20 @@ class MimiSegmentsTest {
     }
 
     @Test
+    fun `skips a pre-roll at 0_00 whose marks arrive once playback has started`() {
+        val dir = File(RuntimeEnvironment.getApplication().filesDir, "mimi_segments")
+        val e2 = episode.copy(uuid = "e2", downloadedFilePath = "/somewhere/e2.mimi")
+        assertNull(segments.toSkip(e2, 300)) // no marks yet
+        dir.resolve("e2.json").writeText("""{"segments": [{"start": 0.0, "end": 45.0, "kind": "ad", "label": "pre-roll"}]}""")
+        assertEquals("pre-roll", segments.toSkip(e2, 1_300)?.label)
+    }
+
+    @Test
+    fun `skips an ad that playback resumes in`() {
+        assertEquals(listOf("pre-roll"), play(30_000))
+    }
+
+    @Test
     fun `skips an ad that playback runs into`() {
         assertEquals(listOf(null, null, "mid-roll", null), play(598_000, 599_000, 600_200, 700_100))
     }

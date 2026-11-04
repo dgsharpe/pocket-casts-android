@@ -39,6 +39,7 @@ class MimiSegments @Inject constructor(
 
     private var lastUuid: String? = null
     private var lastPositionMs = -1L
+    private var runStartMs = -1L // where playback last jumped to by a seek; -1: since it started on this episode
 
     /** The segments for [uuid] if known; otherwise null and they're fetched in the background. */
     fun get(uuid: String): List<Segment>? {
@@ -150,28 +151,25 @@ class MimiSegments @Inject constructor(
     }
 
     /**
-     * Called with the playback position about once a second. Returns the segment to jump past when playback has
-     * just run into one. Seeking into a segment doesn't trigger a skip, so seeking back into an ad plays it.
+     * Called with the playback position about once a second. Returns the segment to jump past when playback is in
+     * one it ran into: one it started in (a pre-roll, or resuming mid-ad) counts, even if its marks only arrive once
+     * it's playing. Seeking into a segment doesn't trigger a skip, so seeking back into an ad plays it.
      */
     fun toSkip(episode: BaseEpisode, positionMs: Long): Segment? {
-        val previous = when {
-            episode.uuid == lastUuid -> lastPositionMs
-
-            positionMs < FRESH_START_MS -> -1L
-
-            // just started: a pre-roll at 0:00 counts as run into
-            else -> positionMs
+        if (episode.uuid != lastUuid) {
+            runStartMs = -1L
+        } else if (positionMs < lastPositionMs || positionMs - lastPositionMs > MAX_TICK_MS) {
+            runStartMs = positionMs // a seek
         }
         lastUuid = episode.uuid
         lastPositionMs = positionMs
         val skipAds = (episode as? PodcastEpisode)?.let { mimiHub.skipsAds(it) } ?: settings.mimiSkipAds.value
         val skipPromos = settings.mimiSkipPromos.value
         if (!skipAds && !skipPromos) return null
-        if (positionMs < previous || positionMs - previous > MAX_TICK_MS) return null // a seek
         if (!isPlayingMimi(episode)) return null
         val segment = get(episode.uuid)?.firstOrNull { s ->
             (if (s.isAd) skipAds else skipPromos) &&
-                s.startMs > previous &&
+                s.startMs > runStartMs &&
                 s.startMs <= positionMs &&
                 positionMs < s.endMs - MIN_LEFT_MS
         } ?: return null
@@ -182,7 +180,6 @@ class MimiSegments @Inject constructor(
     private companion object {
         const val RETRY_MS = 15_000L // the hub has them ~15 s after the transcript text; one tiny request
         const val SUMMARY_CHECK_MS = 30_000L // the summary follows the ad marks by a few minutes
-        const val FRESH_START_MS = 3_000L
         const val MAX_TICK_MS = 6_000L // 1 s ticks at up to 5x speed
         const val MIN_LEFT_MS = 1_000L
     }
